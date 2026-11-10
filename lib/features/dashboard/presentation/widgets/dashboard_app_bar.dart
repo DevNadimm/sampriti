@@ -242,7 +242,6 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
                         controller: currentPwController,
                         obscureText: true,
                         hintText: 'বর্তমান পাসওয়ার্ড লিখুন',
-                        prefixIcon: HugeIcons.strokeRoundedSquareLock02,
                         validator: (val) {
                           if (val == null || val.toString().trim().isEmpty) {
                             return 'বর্তমান পাসওয়ার্ড দিন';
@@ -256,7 +255,6 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
                         controller: newPwController,
                         obscureText: true,
                         hintText: 'নতুন পাসওয়ার্ড লিখুন',
-                        prefixIcon: HugeIcons.strokeRoundedKey01,
                         validator: (val) {
                           final v = val?.toString().trim() ?? '';
                           if (v.length < 8) return 'পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে';
@@ -273,7 +271,6 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
                         controller: confirmPwController,
                         obscureText: true,
                         hintText: 'পুনরায় নতুন পাসওয়ার্ড লিখুন',
-                        prefixIcon: HugeIcons.strokeRoundedCheckmarkBadge01,
                         validator: (val) {
                           if (val?.toString().trim() != newPwController.text.trim()) {
                             return 'নতুন পাসওয়ার্ড মেলেনি';

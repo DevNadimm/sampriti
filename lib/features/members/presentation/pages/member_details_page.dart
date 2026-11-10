@@ -662,7 +662,6 @@ class _MemberDetailsPageState extends State<MemberDetailsPage> {
               controller: pinController,
               keyboardType: TextInputType.number,
               hintText: 'যেমন: 1234',
-              prefixIcon: HugeIcons.strokeRoundedSquareLock02,
             ),
           ],
         ),

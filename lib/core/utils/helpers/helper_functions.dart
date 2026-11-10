@@ -1,6 +1,4 @@
-import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
-import 'package:sampriti/core/services/dio_service.dart';
 
 class HelperFunctions {
   HelperFunctions._();
@@ -60,19 +58,5 @@ class HelperFunctions {
   }) {
     final filtered = parts.where((part) => part != null && part.trim().isNotEmpty).map((part) => part!.trim()).toList();
     return filtered.isEmpty ? fallback : filtered.join(separator);
-  }
-
-  static Future<String> getPublicIp() async {
-    final dio = GetIt.instance<DioService>();
-
-    try {
-      final response = await dio.getRequest(
-        'https://api.ipify.org?format=json',
-      );
-
-      return response.data['ip'] as String;
-    } catch (_) {
-      return 'Unknown';
-    }
   }
 }

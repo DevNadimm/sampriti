@@ -18,7 +18,6 @@ class CustomTextField extends StatelessWidget {
     this.onTap,
     this.validationLabel,
     this.onChanged,
-    this.prefixIcon,
     this.suffixIcon,
     this.onSuffixTap,
     this.validator,
@@ -42,7 +41,6 @@ class CustomTextField extends StatelessWidget {
   final VoidCallback? onTap;
   final String? validationLabel;
   final ValueChanged<String>? onChanged;
-  final List<List<dynamic>>? prefixIcon;
   final List<List<dynamic>>? suffixIcon;
   final VoidCallback? onSuffixTap;
   final FormFieldValidator? validator;
@@ -141,16 +139,6 @@ class CustomTextField extends StatelessWidget {
             suffixText: suffixText,
             errorText: errorText,
             border: const OutlineInputBorder(),
-            prefixIcon: prefixIcon != null
-                ? Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: HugeIcon(
-                      size: 20,
-                      icon: prefixIcon!,
-                      color: AppColors.textSecondary,
-                    ),
-                  )
-                : null,
             suffixIcon: suffixIcon != null
                 ? GestureDetector(
                     onTap: onSuffixTap,

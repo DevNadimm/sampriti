@@ -183,7 +183,7 @@ class _MembersPageState extends State<MembersPage> {
                 label: 'সদস্য খুঁজুন',
                 controller: _searchController,
                 hintText: 'নাম, শেয়ার নং (S101), বা মোবাইল নম্বর...',
-                prefixIcon: HugeIcons.strokeRoundedSearch01,
+                suffixIcon: HugeIcons.strokeRoundedSearch01,
                 onChanged: (val) {
                   context.read<MemberBloc>().add(MemberSearchRequested(val));
                 },

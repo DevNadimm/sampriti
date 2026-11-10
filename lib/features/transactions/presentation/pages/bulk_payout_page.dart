@@ -158,7 +158,6 @@ class _BulkPayoutPageState extends State<BulkPayoutPage> {
                       controller: _fundController,
                       isRequired: true,
                       keyboardType: TextInputType.number,
-                      prefixIcon: HugeIcons.strokeRoundedCoins01,
                       onChanged: (_) => setState(() {}),
                     ),
                     right: CustomTextField(

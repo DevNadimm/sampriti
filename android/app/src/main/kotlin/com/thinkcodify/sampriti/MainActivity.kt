@@ -1,4 +1,4 @@
-package com.example.sampriti
+package com.thinkcodify.sampriti
 
 import io.flutter.embedding.android.FlutterActivity
 

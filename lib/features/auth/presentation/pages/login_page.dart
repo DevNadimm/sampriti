@@ -295,7 +295,6 @@ class _LoginPageState extends State<LoginPage> {
             controller: _shareNoController,
             isRequired: true,
             hintText: 'যেমন: S101',
-            prefixIcon: HugeIcons.strokeRoundedUser,
           ),
           const SizedBox(height: 14),
           CustomTextField(
@@ -305,7 +304,6 @@ class _LoginPageState extends State<LoginPage> {
             hintText: '৪-৬ ডিজিটের পিন নম্বর',
             obscureText: _obscurePin,
             keyboardType: TextInputType.number,
-            prefixIcon: HugeIcons.strokeRoundedLockPassword,
             suffixIcon: _obscurePin
                 ? HugeIcons.strokeRoundedViewOffSlash
                 : HugeIcons.strokeRoundedView,
@@ -345,7 +343,6 @@ class _LoginPageState extends State<LoginPage> {
             isRequired: true,
             hintText: 'অ্যাডমিন মাস্টার পাসওয়ার্ড লিখুন',
             obscureText: _obscureAdminPw,
-            prefixIcon: HugeIcons.strokeRoundedLockPassword,
             suffixIcon: _obscureAdminPw
                 ? HugeIcons.strokeRoundedViewOffSlash
                 : HugeIcons.strokeRoundedView,

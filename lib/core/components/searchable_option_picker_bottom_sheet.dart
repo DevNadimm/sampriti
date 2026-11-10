@@ -35,9 +35,14 @@ class _SearchableOptionPickerBottomSheetState extends State<SearchableOptionPick
   }
 
   void _onSearchChanged() {
-    final query = _searchController.text.trim().toLowerCase();
+    final query = _searchController.text.trim().toLowerCase().replaceAll('\u200C', '');
     setState(() {
-      _filteredOptions = query.isEmpty ? widget.options : widget.options.where((option) => option.toLowerCase().contains(query)).toList();
+      _filteredOptions = query.isEmpty
+          ? widget.options
+          : widget.options.where((option) {
+              final clean = option.toLowerCase().replaceAll('\u200C', '');
+              return clean.contains(query);
+            }).toList();
     });
   }
 

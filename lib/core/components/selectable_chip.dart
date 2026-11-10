@@ -21,6 +21,7 @@ class SelectableChip extends StatelessWidget {
   final SelectableChipVariant variant;
   final double height;
   final EdgeInsetsGeometry padding;
+  final double? fontSize;
 
   const SelectableChip({
     super.key,
@@ -33,6 +34,7 @@ class SelectableChip extends StatelessWidget {
     this.variant = SelectableChipVariant.subtle,
     this.height = 46,
     this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    this.fontSize,
   });
 
   @override
@@ -209,7 +211,7 @@ class SelectableChip extends StatelessWidget {
                     label,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.notoSansBengali(
-                      fontSize: 12.5,
+                      fontSize: fontSize ?? 12.5,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                       color: textColor,
                     ),

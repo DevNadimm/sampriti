@@ -169,7 +169,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                           label: 'লেনদেনের ধরন',
                           controller: _typeController,
                           isRequired: true,
-                          prefixIcon: HugeIcons.strokeRoundedInvoice02,
                           sheetTitle: 'লেনদেনের ধরন নির্বাচন করুন',
                           options: _types.map((t) => t['title']!).toList(),
                           onChanged: (selectedTitle) {
@@ -189,7 +188,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             isRequired: true,
                             isSearchable: true,
                             hintText: 'শেয়ারহোল্ডার নির্বাচন করুন',
-                            prefixIcon: HugeIcons.strokeRoundedUser,
                             sheetTitle: 'সদস্য নির্বাচন করুন',
                             options: _members.map((m) => '${m.no} - ${m.displayName}').toList(),
                             onChanged: (val) {
@@ -217,7 +215,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             Expanded(
                               child: SelectableChip(
                                 label: 'নগদ (Cash)',
-                                icon: HugeIcons.strokeRoundedMoney03,
+                                showCheckmark: false,
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                fontSize: 12,
                                 isSelected: _mode == 'cash',
                                 onSelected: () => setState(() => _mode = 'cash'),
                               ),
@@ -226,7 +226,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             Expanded(
                               child: SelectableChip(
                                 label: 'ব্যাংক (Bank)',
-                                icon: HugeIcons.strokeRoundedBank,
+                                showCheckmark: false,
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                fontSize: 12,
                                 isSelected: _mode == 'bank',
                                 onSelected: () => setState(() => _mode = 'bank'),
                               ),
@@ -235,7 +237,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             Expanded(
                               child: SelectableChip(
                                 label: 'প্রতিষ্ঠান (Inst)',
-                                icon: HugeIcons.strokeRoundedBuilding03,
+                                showCheckmark: false,
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                fontSize: 12,
                                 isSelected: _mode == 'inst',
                                 onSelected: () => setState(() => _mode = 'inst'),
                               ),
@@ -260,7 +264,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             isRequired: true,
                             isSearchable: true,
                             hintText: 'প্রতিষ্ঠান নির্বাচন করুন',
-                            prefixIcon: HugeIcons.strokeRoundedBuilding03,
                             sheetTitle: 'প্রতিষ্ঠান নির্বাচন করুন',
                             options: _institutions,
                             onChanged: (val) {
@@ -276,7 +279,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                           isRequired: true,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           hintText: 'যেমন: 5000',
-                          prefixIcon: HugeIcons.strokeRoundedMoney03,
                         ),
                         const SizedBox(height: 16),
 

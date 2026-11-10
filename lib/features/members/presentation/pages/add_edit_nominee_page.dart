@@ -276,7 +276,6 @@ class _AddEditNomineePageState extends State<AddEditNomineePage> {
                   controller: _relationController,
                   isRequired: true,
                   hintText: 'সম্পর্ক নির্বাচন করুন',
-                  prefixIcon: HugeIcons.strokeRoundedUserGroup,
                   sheetTitle: 'সম্পর্ক / আত্মীয়তা নির্বাচন করুন',
                   options: _quickRelations,
                   onChanged: (val) => setState(() {}),

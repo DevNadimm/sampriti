@@ -10,7 +10,6 @@ class CustomDropdownField extends StatelessWidget {
   final String? hintText;
   final bool isRequired;
   final bool isSearchable;
-  final List<List<dynamic>>? prefixIcon;
   final ValueChanged<String>? onChanged;
   final String? sheetTitle;
   final FormFieldValidator? validator;
@@ -23,7 +22,6 @@ class CustomDropdownField extends StatelessWidget {
     this.hintText,
     this.isRequired = false,
     this.isSearchable = false,
-    this.prefixIcon,
     this.onChanged,
     this.sheetTitle,
     this.validator,
@@ -37,7 +35,6 @@ class CustomDropdownField extends StatelessWidget {
       readOnly: true,
       isRequired: isRequired,
       hintText: hintText ?? '$label নির্বাচন করুন',
-      prefixIcon: prefixIcon,
       suffixIcon: HugeIcons.strokeRoundedArrowDown01,
       validator: validator,
       onTap: () {

@@ -320,7 +320,6 @@ class _AddMemberPageState extends State<AddMemberPage> {
                     controller: _pinController,
                     keyboardType: TextInputType.number,
                     hintText: 'যেমন: 1234 (শেয়ারহোল্ডারের লগইন পিন)',
-                    prefixIcon: HugeIcons.strokeRoundedSquareLock02,
                     validator: (val) {
                       if (val != null && val.toString().trim().isNotEmpty) {
                         final trimmed = val.toString().trim();

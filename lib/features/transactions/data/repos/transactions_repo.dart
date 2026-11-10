@@ -181,6 +181,7 @@ class TransactionsRepo {
       return snap.docs
           .map((doc) => (doc.data()['name'] as String?) ?? '')
           .where((s) => s.isNotEmpty)
+          .map((s) => s.contains('স্কুল') ? s.replaceAll('স্কুল', 'স্কু\u200Cল') : s)
           .toList();
     } catch (e) {
       throw ApiException(message: 'প্রতিষ্ঠান তালিকা লোড করা যায়নি। ইন্টারনেট সংযোগ চেক করুন।');

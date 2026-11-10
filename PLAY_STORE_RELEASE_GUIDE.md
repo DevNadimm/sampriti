@@ -233,6 +233,9 @@ Create `android/app/proguard-rules.pro`:
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
 
+# Play Core (Deferred Components in Flutter Engine)
+-dontwarn com.google.android.play.core.**
+
 # Google & Firebase
 -keepattributes *Annotation*
 -keepattributes Signature
