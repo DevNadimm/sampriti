@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "531955297189",
+    "project_id": "sampriti-90818",
+    "storage_bucket": "sampriti-90818.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:531955297189:android:4875e0d1a4b60e3315164c",
+        "android_client_info": {
+          "package_name": "com.thinkcodify.sampriti"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYBxhawF7y6kv76vRhjS93AVOsWOS6iEQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
