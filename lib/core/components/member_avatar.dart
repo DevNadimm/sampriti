@@ -75,18 +75,24 @@ class MemberAvatar extends StatelessWidget {
       imageContent = _buildFallback();
     }
 
+    final double effectiveRadius = isCircle ? (effectiveWidth / 2) : borderRadius;
+
     return Container(
       width: effectiveWidth,
       height: effectiveHeight,
-      decoration: BoxDecoration(
-        shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: isCircle ? null : BorderRadius.circular(borderRadius),
-        border: border,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(isCircle ? (effectiveWidth / 2) : borderRadius),
-        child: imageContent,
-      ),
+      foregroundDecoration: border != null
+          ? BoxDecoration(
+              shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
+              borderRadius: isCircle ? null : BorderRadius.circular(effectiveRadius),
+              border: border,
+            )
+          : null,
+      child: isCircle
+          ? ClipOval(child: imageContent)
+          : ClipRRect(
+              borderRadius: BorderRadius.circular(effectiveRadius),
+              child: imageContent,
+            ),
     );
   }
 

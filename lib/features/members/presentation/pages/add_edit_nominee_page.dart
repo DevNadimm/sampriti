@@ -321,7 +321,7 @@ class _AddEditNomineePageState extends State<AddEditNomineePage> {
 
                 DualFieldRow(
                   left: CustomTextField(
-                    label: 'শেয়ারের অংশ শতকরা (%)',
+                    label: 'শেয়ারের অংশ (%)',
                     controller: _shareController,
                     isRequired: true,
                     keyboardType: TextInputType.number,

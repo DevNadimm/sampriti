@@ -66,31 +66,33 @@ class CustomTextField extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    style: GoogleFonts.poppins(
-                      textStyle: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    text: label,
+                    style: GoogleFonts.notoSansBengali(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
+                    children: [
+                      if (isRequired && showRequiredIndicator)
+                        const TextSpan(
+                          text: ' *',
+                          style: TextStyle(
+                            color: AppColors.error,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                    ],
                   ),
-                  if (isRequired && showRequiredIndicator)
-                    const Text(
-                      ' *',
-                      style: TextStyle(
-                        color: AppColors.error,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                ],
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              if (showAction)
+              if (showAction) ...[
+                const SizedBox(width: 8),
                 GestureDetector(
                   onTap: onLabelActionTap,
                   child: Text(
@@ -104,6 +106,7 @@ class CustomTextField extends StatelessWidget {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
         if (label.isNotEmpty) const SizedBox(height: 8),

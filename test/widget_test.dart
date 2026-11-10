@@ -35,4 +35,26 @@ void main() {
 
     expect(find.byType(CustomCachedImage), findsOneWidget);
   });
+
+  testWidgets('MemberAvatar renders rectangular avatar with border and foregroundDecoration', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MemberAvatar(
+            photo: null,
+            fallbackText: 'নমিনী',
+            width: 84,
+            height: 104,
+            isCircle: false,
+            borderRadius: 12,
+            border: Border.all(color: Colors.amber, width: 2.5),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('নমিনী'), findsOneWidget);
+    final container = tester.widget<Container>(find.byType(Container).first);
+    expect(container.foregroundDecoration, isNotNull);
+  });
 }

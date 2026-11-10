@@ -368,10 +368,20 @@ class _MemberDetailsPageState extends State<MemberDetailsPage> {
         ),
         if (isAdmin) ...[
           const SizedBox(width: 8),
-          IconButton.filledTonal(
-            tooltip: 'পিন সেট করুন',
-            icon: const HugeIcon(icon: HugeIcons.strokeRoundedLockPassword, size: 18, color: AppColors.primary),
-            onPressed: () => _showPinDialog(context, m),
+          Tooltip(
+            message: 'লগইন পিন নির্ধারণ / পরিবর্তন',
+            child: SpringButton(
+              width: 50,
+              height: 50,
+              onPressed: () => _showPinDialog(context, m),
+              child: const Center(
+                child: HugeIcon(
+                  icon: HugeIcons.strokeRoundedLockPassword,
+                  size: 20,
+                  color: AppColors.white,
+                ),
+              ),
+            ),
           ),
         ],
       ],
