@@ -4,6 +4,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:intl/intl.dart';
 import 'package:sampriti/core/components/app_developer_footer.dart';
 import 'package:sampriti/core/config/colors.dart';
+import 'package:sampriti/core/services/app_review_service.dart';
 import 'package:sampriti/core/shared/widgets/error_state_widget.dart';
 import 'package:sampriti/core/shared/widgets/gradient_background.dart';
 import 'package:sampriti/features/auth/data/models/user_session_model.dart';
@@ -46,6 +47,11 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     context.read<DashboardBloc>().add(DashboardFetchRequested());
     _loadMemberProfile();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        AppReviewService.recordActionAndPromptIfNeeded(context);
+      }
+    });
   }
 
   Future<void> _loadMemberProfile() async {
@@ -74,7 +80,7 @@ class _DashboardPageState extends State<DashboardPage> {
       builder: (context, authState) {
         final session = authState is AuthAuthenticated ? authState.session : null;
         final isAdmin = session?.isAdmin ?? true;
-        final title = isAdmin ? 'অ্যাডমিন ড্যাশবোর্ড' : (session?.name ?? 'শেয়ারহোল্ডার');
+        final title = isAdmin ? 'অ্যাডমিন' : (session?.name ?? 'শেয়ারহোল্ডার');
         final subtitle = isAdmin ? 'ম্যানেজার' : 'শেয়ার নং: ${session?.memberNo ?? "—"}';
 
         return Scaffold(
@@ -202,6 +208,7 @@ class _DashboardPageState extends State<DashboardPage> {
             Navigator.push(context, AddTransactionPage.route()).then((_) {
               if (context.mounted) {
                 context.read<DashboardBloc>().add(DashboardFetchRequested());
+                AppReviewService.recordActionAndPromptIfNeeded(context);
               }
             });
           },
@@ -238,6 +245,18 @@ class _DashboardPageState extends State<DashboardPage> {
           label: 'আর্থিক রিপোর্ট',
           color: AppColors.blue,
           onTap: () => Navigator.push(context, ReportsPage.route()),
+        ),
+        QuickActionItem(
+          icon: HugeIcons.strokeRoundedShare01,
+          label: 'অ্যাপ শেয়ার',
+          color: AppColors.primary,
+          onTap: () => AppReviewService.shareApp(),
+        ),
+        QuickActionItem(
+          icon: HugeIcons.strokeRoundedStar,
+          label: 'রেটিং দিন',
+          color: AppColors.accentYellow,
+          onTap: () => AppReviewService.showManualRatingDialog(context),
         ),
       ];
     }
@@ -282,6 +301,18 @@ class _DashboardPageState extends State<DashboardPage> {
             Navigator.push(context, ShareholderDocPage.route(memberNo: memberNo));
           }
         },
+      ),
+      QuickActionItem(
+        icon: HugeIcons.strokeRoundedShare01,
+        label: 'অ্যাপ শেয়ার',
+        color: AppColors.primary,
+        onTap: () => AppReviewService.shareApp(),
+      ),
+      QuickActionItem(
+        icon: HugeIcons.strokeRoundedStar,
+        label: 'রেটিং দিন',
+        color: AppColors.accentYellow,
+        onTap: () => AppReviewService.showManualRatingDialog(context),
       ),
     ];
   }

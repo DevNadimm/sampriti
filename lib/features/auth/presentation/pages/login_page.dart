@@ -10,6 +10,7 @@ import 'package:sampriti/core/config/colors.dart';
 import 'package:sampriti/core/shared/widgets/app_notifier.dart';
 import 'package:sampriti/core/shared/widgets/gradient_background.dart';
 import 'package:sampriti/core/shared/widgets/loader.dart';
+import 'package:sampriti/features/auth/data/repos/auth_repo.dart';
 import 'package:sampriti/features/auth/presentation/bloc/auth/auth_bloc.dart';
 import 'package:sampriti/features/dashboard/presentation/pages/dashboard_page.dart';
 
@@ -36,6 +37,13 @@ class _LoginPageState extends State<LoginPage> {
 
   final _shareholderFormKey = GlobalKey<FormState>();
   final _adminFormKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Invalidate any leftover cached session when landing on login screen
+    AuthRepo.logout();
+  }
 
   @override
   void dispose() {

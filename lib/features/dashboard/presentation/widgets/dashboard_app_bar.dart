@@ -7,6 +7,7 @@ import 'package:sampriti/core/components/custom_icon_button.dart';
 import 'package:sampriti/core/components/custom_text_field.dart';
 import 'package:sampriti/core/components/member_avatar.dart';
 import 'package:sampriti/core/config/colors.dart';
+import 'package:sampriti/core/services/app_review_service.dart';
 import 'package:sampriti/core/shared/widgets/app_confirmation_dialog.dart';
 import 'package:sampriti/core/shared/widgets/app_notifier.dart';
 import 'package:sampriti/features/auth/data/repos/auth_repo.dart';
@@ -32,12 +33,14 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(64);
+  Size get preferredSize => const Size.fromHeight(66);
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
       elevation: 0,
+      toolbarHeight: 66,
+      titleSpacing: 16,
       backgroundColor: Colors.transparent,
       systemOverlayStyle: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -94,28 +97,27 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textSecondary,
-                    height: 1.2,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Flexible(
                       child: Text(
                         title,
                         style: GoogleFonts.notoSansBengali(
-                          fontSize: 15,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
-                          height: 1.2,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                       decoration: BoxDecoration(
                         color: (isAdmin ? AppColors.primary : AppColors.accent).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
@@ -123,7 +125,7 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
                       child: Text(
                         subtitle,
                         style: GoogleFonts.notoSansBengali(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: isAdmin ? AppColors.primary : AppColors.accent,
                         ),
@@ -139,32 +141,48 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         if (isAdmin)
           Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(right: 6),
             child: CustomIconButton(
-              size: 40,
-              iconSize: 20,
+              size: 38,
+              iconSize: 19,
               tooltip: 'পাসওয়ার্ড পরিবর্তন',
               backgroundColor: AppColors.card,
               shape: const CircleBorder(side: BorderSide(color: AppColors.inputBorder, width: 1)),
               icon: const HugeIcon(
                 icon: HugeIcons.strokeRoundedLockPassword,
-                size: 20,
+                size: 19,
                 color: AppColors.primary,
               ),
               onTap: () => _showChangePasswordDialog(context),
             ),
           ),
         Padding(
-          padding: const EdgeInsets.only(right: 16),
+          padding: const EdgeInsets.only(right: 6),
           child: CustomIconButton(
-            size: 40,
-            iconSize: 20,
+            size: 38,
+            iconSize: 19,
+            tooltip: 'অ্যাপ শেয়ার করুন',
+            backgroundColor: AppColors.card,
+            shape: const CircleBorder(side: BorderSide(color: AppColors.inputBorder, width: 1)),
+            icon: const HugeIcon(
+              icon: HugeIcons.strokeRoundedShare01,
+              size: 19,
+              color: AppColors.primary,
+            ),
+            onTap: () => AppReviewService.shareApp(),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 14),
+          child: CustomIconButton(
+            size: 38,
+            iconSize: 19,
             tooltip: 'লগআউট',
             backgroundColor: AppColors.card,
             shape: const CircleBorder(side: BorderSide(color: AppColors.inputBorder, width: 1)),
             icon: const HugeIcon(
               icon: HugeIcons.strokeRoundedLogout03,
-              size: 20,
+              size: 19,
               color: AppColors.error,
             ),
             onTap: () {

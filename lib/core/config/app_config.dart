@@ -7,13 +7,18 @@ class AppConfig {
   static const String appSlogan = "We build our nation by building ourselves";
   static const String establishedYear = "২০১১";
   static const String orgAddress = "নোয়াপাড়া আইডিয়াল স্কুল, রাউজান, চট্টগ্রাম-৪৩৪৬";
-  static const String appVersion = "1.0.0";
+  static const String appVersion = "1.0.2";
+  static const String appBuildNumber = "3";
   static const String appSubtitle = "সমবায় ও বিনিয়োগ ব্যবস্থাপনা";
 
   /// URLs
   static const String websiteUrl = "https://sampriti.org";
   static const String termsUrl = "$websiteUrl/terms";
   static const String privacyUrl = "$websiteUrl/privacy";
+  static const String playStoreUrl =
+      "https://play.google.com/store/apps/details?id=com.thinkcodify.sampriti";
+  static const String playStoreMarketUrl =
+      "market://details?id=com.thinkcodify.sampriti";
 
   /// Support
   static const String supportPhone = "+8801700000000";

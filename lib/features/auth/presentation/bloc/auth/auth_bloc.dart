@@ -40,8 +40,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final session = await AuthRepo.adminLogin(event.password);
       emit(AuthAuthenticated(session));
     } on ApiException catch (e) {
+      await AuthRepo.logout();
       emit(AuthFailure(e.message));
     } catch (e) {
+      await AuthRepo.logout();
       emit(AuthFailure(e.toString()));
     }
   }
@@ -58,8 +60,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       emit(AuthAuthenticated(session));
     } on ApiException catch (e) {
+      await AuthRepo.logout();
       emit(AuthFailure(e.message));
     } catch (e) {
+      await AuthRepo.logout();
       emit(AuthFailure(e.toString()));
     }
   }

@@ -5,6 +5,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:sampriti/core/config/app_config.dart';
 import 'package:sampriti/core/config/assets.dart';
 import 'package:sampriti/core/config/colors.dart';
+import 'package:sampriti/core/services/app_review_service.dart';
 
 class AppDeveloperFooter extends StatefulWidget {
   final bool showDeveloperText;
@@ -163,7 +164,7 @@ class AppCreditsBottomSheet extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'সংস্করণ ${AppConfig.appVersion} • বিল্ড 1.0',
+              'সংস্করণ ${AppConfig.appVersion} • বিল্ড ${AppConfig.appBuildNumber}',
               style: GoogleFonts.notoSansBengali(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
@@ -227,7 +228,73 @@ class AppCreditsBottomSheet extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            // Share & Rate Actions
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      AppReviewService.shareApp();
+                    },
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedShare01,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                    label: Text(
+                      'শেয়ার করুন',
+                      style: GoogleFonts.notoSansBengali(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      AppReviewService.showManualRatingDialog(context);
+                    },
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedStar,
+                      size: 18,
+                      color: AppColors.white,
+                    ),
+                    label: Text(
+                      'রেটিং দিন',
+                      style: GoogleFonts.notoSansBengali(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
 
             // Close button
             SizedBox(

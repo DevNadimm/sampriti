@@ -9,6 +9,7 @@
 * **Application ID / Package Name:** `com.thinkcodify.sampriti`
 * **Flutter Version:** 3.38.7
 * **Dart SDK:** 3.10.7
+* **App Version:** 1.0.2 (Build: 3)
 * **Android Gradle Plugin (AGP):** 8.11.1 (Kotlin DSL `build.gradle.kts`)
 * **Gradle Wrapper:** 8.14
 * **Database:** Google Cloud Firestore (Firebase Project: `sampriti-90818`)

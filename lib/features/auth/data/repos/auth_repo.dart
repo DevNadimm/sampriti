@@ -9,6 +9,8 @@ class AuthRepo {
   static final _firestore = FirebaseFirestore.instance;
 
   /// Admin Login via Password
+  /// Strictly verified against Cloud Firestore settings/org_config (adminPwHash)
+  /// No hardcoded passwords, no default backdoors.
   static Future<UserSessionModel> adminLogin(String password) async {
     final trimmed = password.trim();
     if (trimmed.isEmpty) {
@@ -26,16 +28,15 @@ class AuthRepo {
     }
 
     if (expectedHash.isEmpty) {
-      expectedHash = HashHelper.fastHash('Admin@202011.');
-      _firestore.collection('settings').doc('org_config').set({
-        'adminPwHash': expectedHash,
-      }, SetOptions(merge: true)).catchError((_) {});
+      throw ApiException(
+        message: 'অ্যাডমিন অ্যাকাউন্ট কনফিগার করা নেই। অনুগ্রহ করে ডাটাবেজ অ্যাডমিনের সাথে যোগাযোগ করুন।',
+      );
     }
 
-    final inputHash = HashHelper.fastHash(trimmed);
-    final isMatch = (inputHash == expectedHash) ||
-        (expectedHash == HashHelper.fastHash('Admin@202011.') &&
-            inputHash == HashHelper.fastHash('Admin@202011'));
+    // Compare strictly against Firestore adminPwHash
+    final inputFastHash = HashHelper.fastHash(trimmed);
+    final inputSha256 = HashHelper.sha256Hash(trimmed);
+    final isMatch = (inputFastHash == expectedHash) || (inputSha256 == expectedHash);
 
     if (!isMatch) {
       throw ApiException(message: 'অ্যাডমিন পাসওয়ার্ড ভুল হয়েছে');
@@ -62,7 +63,7 @@ class AuthRepo {
       throw ApiException(message: 'বর্তমান ও নতুন উভয় পাসওয়ার্ড প্রদান করুন');
     }
 
-    // 1. Verify current password
+    // 1. Verify current password directly from Firestore
     String expectedHash = '';
     try {
       final doc = await _firestore.collection('settings').doc('org_config').get();
@@ -74,12 +75,13 @@ class AuthRepo {
     }
 
     if (expectedHash.isEmpty) {
-      expectedHash = HashHelper.fastHash('Admin@202011.');
+      throw ApiException(
+        message: 'ডাটাবেজে কোনো সংরক্ষিত অ্যাডমিন পাসওয়ার্ড পাওয়া যায়নি।',
+      );
     }
 
     final isCurrentMatch = (HashHelper.fastHash(currentTrimmed) == expectedHash) ||
-        (expectedHash == HashHelper.fastHash('Admin@202011.') &&
-            HashHelper.fastHash(currentTrimmed) == HashHelper.fastHash('Admin@202011'));
+        (HashHelper.sha256Hash(currentTrimmed) == expectedHash);
 
     if (!isCurrentMatch) {
       throw ApiException(message: 'বর্তমান পাসওয়ার্ডটি সঠিক নয়');
