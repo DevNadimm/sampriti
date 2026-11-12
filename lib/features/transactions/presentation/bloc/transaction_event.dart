@@ -4,8 +4,22 @@ sealed class TransactionEvent {}
 
 class TransactionFetchRequested extends TransactionEvent {
   final String? memberNo;
-  final String? type;
-  TransactionFetchRequested({this.memberNo, this.type});
+  final String? dir; // 'in' | 'out' | 'xfer'
+  final String? sectorId;
+  final String? kind; // 'profit_payout' | 'bank_dep' | 'bank_wd'
+  final String? projectId;
+  final String? from; // YYYY-MM-DD
+  final String? to; // YYYY-MM-DD
+
+  TransactionFetchRequested({
+    this.memberNo,
+    this.dir,
+    this.sectorId,
+    this.kind,
+    this.projectId,
+    this.from,
+    this.to,
+  });
 }
 
 class TransactionAddRequested extends TransactionEvent {
@@ -18,15 +32,17 @@ class TransactionDeleteRequested extends TransactionEvent {
   TransactionDeleteRequested(this.id);
 }
 
-class BulkPayoutRequested extends TransactionEvent {
-  final double totalFund;
+class ProjectProfitDistributionRequested extends TransactionEvent {
+  final String projectId;
+  final double totalProfit;
   final String date;
   final String mode;
   final String acct;
   final String note;
 
-  BulkPayoutRequested({
-    required this.totalFund,
+  ProjectProfitDistributionRequested({
+    required this.projectId,
+    required this.totalProfit,
     required this.date,
     required this.mode,
     required this.acct,

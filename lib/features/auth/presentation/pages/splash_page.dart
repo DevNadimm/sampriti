@@ -8,6 +8,7 @@ import 'package:sampriti/core/shared/widgets/loader.dart';
 import 'package:sampriti/features/auth/presentation/bloc/auth/auth_bloc.dart';
 import 'package:sampriti/features/auth/presentation/pages/login_page.dart';
 import 'package:sampriti/features/dashboard/presentation/pages/dashboard_page.dart';
+import 'package:sampriti/features/transactions/data/repos/transactions_migration_repo.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -35,6 +36,8 @@ class _SplashPageState extends State<SplashPage> {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
+          // Fire-and-forget: admin-only, idempotent, never blocks the dashboard.
+          TransactionsMigrationRepo.runIfNeeded();
           Navigator.pushReplacement(context, DashboardPage.route());
         } else if (state is AuthUnauthenticated || state is AuthFailure) {
           Navigator.pushReplacement(context, LoginPage.route());

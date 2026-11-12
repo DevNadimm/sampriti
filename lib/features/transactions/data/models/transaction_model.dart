@@ -1,116 +1,125 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sampriti/core/utils/helpers/date_formatter.dart';
+import 'package:sampriti/features/setup/data/models/sector_model.dart';
+import 'package:sampriti/features/transactions/data/models/legacy_type_map.dart';
 
 class TransactionModel {
   final String id;
   final String vno; // e.g. "V-0001"
-  final String date; // In DB: YYYY-MM-DD
-  final String type; // share_in, inst_income, donation, loan_return, plan_dep, inst_invest, inst_loan, inst_subsidy, eid_bonus, payout, expense, bank_dep, bank_wd
+  final String date; // DB: YYYY-MM-DD
+  final String dir; // 'in' | 'out' | 'xfer'
+  final String sectorId; // sector doc id; '' for bank transfers
+  final String sectorKey; // shareholder | prokolpo | donation | custom | bank_transfer
+  final String sectorName; // Bangla sector name, copied onto the voucher
+  final String project; // ProjectModel.id, '' if none
   final String member; // Member No e.g. "S101"
-  final String inst; // Institution ID e.g. "i1"
-  final String mode; // bank, cash, inst
-  final String acct; // Bank Account ID
-  final String plan; // Investment Plan ID
+  final String kind; // '' | 'profit_payout' | 'bank_dep' | 'bank_wd'
+  final String mode; // cash | bank | inst
+  final String acct; // Bank account id or free text
+  final String inst; // legacy only, read-only
   final double amount;
-  final String cat; // e.g. বেতন, মেরামত, ইত্যাদি
   final String note;
+  final String legacyType; // original old `type`, '' for new vouchers
 
   const TransactionModel({
     required this.id,
     required this.vno,
     required this.date,
-    required this.type,
+    required this.dir,
+    this.sectorId = '',
+    this.sectorKey = SectorModel.keyCustom,
+    this.sectorName = '',
+    this.project = '',
     this.member = '',
-    this.inst = '',
+    this.kind = '',
     this.mode = 'cash',
     this.acct = '',
-    this.plan = '',
+    this.inst = '',
     required this.amount,
-    this.cat = '',
     this.note = '',
+    this.legacyType = '',
   });
 
-  /// Date formatted for UI display (dd/MM/yyyy e.g. 02/02/2026)
+  /// Date formatted for UI display (dd/MM/yyyy)
   String get uiDate => DateFormatter.ddMMyyyy(date);
 
-  /// Transaction type title in Bengali
-  String get typeTitle {
-    switch (type) {
-      case 'share_in':
-        return 'সদস্যের বিনিয়োগ জমা';
-      case 'inst_income':
-        return 'প্রতিষ্ঠানের আয় জমা';
-      case 'donation':
-        return 'সদস্য ডোনেশন';
-      case 'loan_return':
-        return 'লোন ফেরত প্রাপ্তি';
-      case 'plan_dep':
-        return 'প্রকল্পে কিস্তি জমা';
-      case 'inst_invest':
-        return 'প্রতিষ্ঠানে বিনিয়োগ';
-      case 'inst_loan':
-        return 'প্রতিষ্ঠানকে লোন প্রদান';
-      case 'inst_subsidy':
-        return 'ভর্তুকি প্রদান';
-      case 'eid_bonus':
-        return 'ঈদ বোনাস প্রদান';
-      case 'payout':
-        return 'মুনাফা বণ্টন প্রদান';
-      case 'expense':
-        return 'অন্যান্য ব্যয়';
-      case 'bank_dep':
-        return 'নগদ থেকে ব্যাংকে জমা';
-      case 'bank_wd':
-        return 'ব্যাংক থেকে নগদ উত্তোলন';
-      default:
-        return type;
-    }
+  /// Voucher title in Bangla
+  String get title {
+    if (kind == 'bank_dep') return 'নগদ থেকে ব্যাংকে জমা';
+    if (kind == 'bank_wd') return 'ব্যাংক থেকে নগদ উত্তোলন';
+    if (kind == 'profit_payout') return 'মুনাফা বণ্টন প্রদান';
+    final s = sectorName.isNotEmpty ? sectorName : 'অন্যান্য';
+    return dir == 'in' ? 'আয় — $s' : 'ব্যয় — $s';
   }
 
-  /// Sign: +1 (Inflow), -1 (Outflow), 0 (Internal transfer)
-  int get sign {
-    if (['share_in', 'inst_income', 'donation', 'loan_return', 'plan_dep'].contains(type)) {
-      return 1;
-    }
-    if (['inst_invest', 'inst_loan', 'inst_subsidy', 'eid_bonus', 'payout', 'expense'].contains(type)) {
-      return -1;
-    }
-    return 0; // Internal transfers
-  }
+  /// Sign: +1 inflow, -1 outflow, 0 transfer
+  int get sign => dir == 'in' ? 1 : (dir == 'out' ? -1 : 0);
 
   bool get isInflow => sign > 0;
   bool get isOutflow => sign < 0;
   bool get isTransfer => sign == 0;
+  bool get isProfitPayout => kind == 'profit_payout';
+  bool get isBankTransfer => kind == 'bank_dep' || kind == 'bank_wd';
 
+  /// Writes new schema. Never writes the old `type` key.
   Map<String, dynamic> toMap() => {
         'id': id,
         'vno': vno,
         'date': DateFormatter.yyyyMMdd(date),
-        'type': type,
+        'dir': dir,
+        'sectorId': sectorId,
+        'sectorKey': sectorKey,
+        'sectorName': sectorName,
+        'project': project,
         'member': member,
-        'inst': inst,
+        'kind': kind,
         'mode': mode,
         'acct': acct,
-        'plan': plan,
         'amount': amount,
-        'cat': cat,
         'note': note,
+        if (legacyType.isNotEmpty) 'legacyType': legacyType,
+        'schema': 2,
       };
 
-  factory TransactionModel.fromMap(Map<String, dynamic> map, [String? docId]) => TransactionModel(
-        id: (map['id'] as String?) ?? docId ?? '',
-        vno: (map['vno'] as String?) ?? '',
-        date: DateFormatter.yyyyMMdd(map['date']),
-        type: (map['type'] as String?) ?? 'share_in',
-        member: (map['member'] as String?) ?? '',
-        inst: (map['inst'] as String?) ?? '',
-        mode: (map['mode'] as String?) ?? 'cash',
-        acct: (map['acct'] as String?) ?? '',
-        plan: (map['plan'] as String?) ?? '',
-        amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
-        cat: (map['cat'] as String?) ?? '',
-        note: (map['note'] as String?) ?? '',
-      );
+  /// Reads new schema. If `dir` is missing (old doc), derives every
+  /// structural field in memory from the legacy `type`.
+  factory TransactionModel.fromMap(Map<String, dynamic> map, [String? docId]) {
+    final rawDir = ((map['dir'] as String?) ?? '').trim();
+    final oldType = (map['type'] as String?) ?? '';
+    final isLegacy = rawDir.isEmpty;
+    final legacy = isLegacy ? LegacyTypeMap.resolve(oldType) : null;
+
+    String pick(String key, String? fallback) {
+      final v = ((map[key] as String?) ?? '').trim();
+      if (v.isNotEmpty) return v;
+      return fallback ?? '';
+    }
+
+    final inst = (map['inst'] as String?) ?? '';
+    final storedProject = pick('project', null);
+    final project = storedProject.isNotEmpty
+        ? storedProject
+        : ((legacy?.projectFromInst ?? false) ? inst : '');
+
+    return TransactionModel(
+      id: (map['id'] as String?) ?? docId ?? '',
+      vno: (map['vno'] as String?) ?? '',
+      date: DateFormatter.yyyyMMdd(map['date']),
+      dir: isLegacy ? legacy!.dir : rawDir,
+      sectorId: pick('sectorId', legacy?.sectorId),
+      sectorKey: pick('sectorKey', legacy?.sectorKey ?? SectorModel.keyCustom),
+      sectorName: pick('sectorName', legacy?.sectorName),
+      project: project,
+      member: (map['member'] as String?) ?? '',
+      kind: pick('kind', legacy?.kind),
+      mode: (map['mode'] as String?) ?? 'cash',
+      acct: (map['acct'] as String?) ?? '',
+      inst: inst,
+      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      note: (map['note'] as String?) ?? '',
+      legacyType: isLegacy ? oldType : ((map['legacyType'] as String?) ?? ''),
+    );
+  }
 
   factory TransactionModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};

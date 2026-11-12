@@ -20,12 +20,13 @@ import 'package:sampriti/features/transactions/presentation/bloc/transaction_blo
 
 class VoucherDetailsPage extends StatelessWidget {
   final TransactionModel transaction;
+  final String? projectName; // optional display name; falls back to project id
 
-  static Route route({required TransactionModel transaction}) => MaterialPageRoute(
-        builder: (_) => VoucherDetailsPage(transaction: transaction),
+  static Route route({required TransactionModel transaction, String? projectName}) => MaterialPageRoute(
+        builder: (_) => VoucherDetailsPage(transaction: transaction, projectName: projectName),
       );
 
-  const VoucherDetailsPage({super.key, required this.transaction});
+  const VoucherDetailsPage({super.key, required this.transaction, this.projectName});
 
   String _formatAmount(double amount) {
     final formatter = NumberFormat('#,##,###');
@@ -252,7 +253,11 @@ class VoucherDetailsPage extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     // Structured Info
-                    InfoRow(label: 'লেনদেনের ধরন', value: transaction.typeTitle),
+                    InfoRow(label: 'লেনদেনের ধরন', value: transaction.title),
+                    if (transaction.sectorName.isNotEmpty)
+                      InfoRow(label: 'খাত', value: transaction.sectorName),
+                    if (transaction.project.isNotEmpty)
+                      InfoRow(label: 'প্রকল্প', value: projectName ?? transaction.project),
                     if (transaction.member.isNotEmpty)
                       InfoRow(label: 'সংশ্লিষ্ট সদস্য', value: 'শেয়ার নং ${transaction.member}'),
                     InfoRow(
@@ -263,8 +268,6 @@ class VoucherDetailsPage extends StatelessWidget {
                     ),
                     if (transaction.acct.isNotEmpty)
                       InfoRow(label: 'ব্যাংক হিসাব', value: transaction.acct),
-                    if (transaction.cat.isNotEmpty)
-                      InfoRow(label: 'ক্যাটেগরি', value: transaction.cat),
                     if (transaction.note.isNotEmpty)
                       InfoRow(label: 'বিবরণ ও মন্তব্য', value: transaction.note),
 

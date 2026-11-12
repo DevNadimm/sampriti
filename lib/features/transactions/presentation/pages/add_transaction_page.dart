@@ -14,11 +14,18 @@ import 'package:sampriti/core/shared/widgets/gradient_background.dart';
 import 'package:sampriti/core/shared/widgets/loader.dart';
 import 'package:sampriti/core/utils/helpers/date_formatter.dart';
 import 'package:sampriti/core/utils/helpers/date_picker_helper.dart';
+import 'package:sampriti/features/finance/data/models/bank_account_model.dart';
+import 'package:sampriti/features/finance/data/repos/bank_repo.dart';
 import 'package:sampriti/features/members/data/models/member_model.dart';
 import 'package:sampriti/features/members/data/repos/members_repo.dart';
+import 'package:sampriti/features/setup/data/models/project_model.dart';
+import 'package:sampriti/features/setup/data/models/sector_model.dart';
+import 'package:sampriti/features/setup/data/repos/setup_repo.dart';
 import 'package:sampriti/features/transactions/data/models/transaction_model.dart';
 import 'package:sampriti/features/transactions/data/repos/transactions_repo.dart';
 import 'package:sampriti/features/transactions/presentation/bloc/transaction_bloc.dart';
+
+const String _noProjectLabel = 'প্রকল্প নির্দিষ্ট নয়';
 
 class AddTransactionPage extends StatefulWidget {
   static Route route() => MaterialPageRoute(builder: (_) => const AddTransactionPage());
@@ -32,65 +39,66 @@ class AddTransactionPage extends StatefulWidget {
 class _AddTransactionPageState extends State<AddTransactionPage> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _vnoController = TextEditingController();
-  final TextEditingController _dateController = TextEditingController();
-  final TextEditingController _typeController = TextEditingController();
-  final TextEditingController _memberController = TextEditingController();
-  final TextEditingController _instController = TextEditingController();
-  final TextEditingController _amountController = TextEditingController();
-  final TextEditingController _noteController = TextEditingController();
-  final TextEditingController _acctController = TextEditingController();
+  final _vnoController = TextEditingController();
+  final _dateController = TextEditingController();
+  final _sectorController = TextEditingController();
+  final _projectController = TextEditingController();
+  final _memberController = TextEditingController();
+  final _investProjectController = TextEditingController();
+  final _donorController = TextEditingController();
+  final _bankController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _noteController = TextEditingController();
 
-  String _type = 'share_in';
+  String _dir = 'in'; // 'in' = আয়, 'out' = ব্যয়
   String _mode = 'cash';
-  String _selectedMember = '';
-  List<MemberModel> _members = [];
-  List<String> _institutions = [];
-  bool _isLoadingMembers = true;
+  bool _isLoading = true;
 
-  final List<Map<String, String>> _types = [
-    {'key': 'share_in', 'title': 'সদস্যের বিনিয়োগ জমা'},
-    {'key': 'inst_income', 'title': 'প্রতিষ্ঠানের আয় জমা'},
-    {'key': 'donation', 'title': 'সদস্য ডোনেশন'},
-    {'key': 'loan_return', 'title': 'লোন ফেরত প্রাপ্তি'},
-    {'key': 'plan_dep', 'title': 'প্রকল্পে কিস্তি জমা'},
-    {'key': 'inst_invest', 'title': 'প্রতিষ্ঠানে বিনিয়োগ'},
-    {'key': 'inst_loan', 'title': 'প্রতিষ্ঠানকে লোন প্রদান'},
-    {'key': 'inst_subsidy', 'title': 'ভর্তুকি প্রদান'},
-    {'key': 'eid_bonus', 'title': 'ঈদ বোনাস প্রদান'},
-    {'key': 'payout', 'title': 'মুনাফা বণ্টন প্রদান'},
-    {'key': 'expense', 'title': 'অন্যান্য সাধারণ ব্যয়'},
-    {'key': 'bank_dep', 'title': 'নগদ থেকে ব্যাংকে জমা'},
-    {'key': 'bank_wd', 'title': 'ব্যাংক থেকে নগদ উত্তোলন'},
-  ];
+  List<SectorModel> _incomeSectors = [];
+  List<SectorModel> _expenseSectors = [];
+  List<ProjectModel> _projects = [];
+  List<MemberModel> _members = [];
+  List<BankAccountModel> _banks = [];
+
+  SectorModel? _sector;
+  String _projectId = ''; // খাত = প্রকল্প
+  String _memberNo = ''; // খাত = শেয়ারহোল্ডার
+  String _investProjectId = ''; // আয় → শেয়ারহোল্ডার, ঐচ্ছিক প্রকল্প ট্যাগ
+  String _bankId = ''; // মাধ্যম = ব্যাংক
 
   @override
   void initState() {
     super.initState();
     _dateController.text = DateFormatter.ddMMyyyy(DateTime.now());
-    _typeController.text = _types.firstWhere((t) => t['key'] == _type)['title']!;
     _initData();
   }
 
   Future<void> _initData() async {
-    final nextVNo = await TransactionsRepo.getNextVoucherNo();
-    final members = await MembersRepo.getMembers();
-    final instList = await TransactionsRepo.getInstitutions();
+    try {
+      final nextVNo = await TransactionsRepo.getNextVoucherNo();
+      final incomeSectors = await SetupRepo.getSectors(SectorType.income);
+      final expenseSectors = await SetupRepo.getSectors(SectorType.expense);
+      final projects = await SetupRepo.getProjects();
+      final members = await MembersRepo.getMembers();
+      List<BankAccountModel> banks = [];
+      try {
+        banks = await BankRepo.getBankAccounts();
+      } catch (_) {}
 
-    if (mounted) {
+      if (!mounted) return;
       setState(() {
         _vnoController.text = nextVNo;
+        _incomeSectors = incomeSectors;
+        _expenseSectors = expenseSectors;
+        _projects = projects;
         _members = members;
-        _institutions = instList;
-        if (members.isNotEmpty) {
-          _selectedMember = members.first.no;
-          _memberController.text = '${members.first.no} - ${members.first.displayName}';
-        }
-        if (instList.isNotEmpty) {
-          _instController.text = instList.first;
-        }
-        _isLoadingMembers = false;
+        _banks = banks.where((b) => b.isActive).toList();
+        _isLoading = false;
       });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      AppNotifier.showErrorSnackBar(context, e.toString());
     }
   }
 
@@ -98,16 +106,65 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   void dispose() {
     _vnoController.dispose();
     _dateController.dispose();
-    _typeController.dispose();
+    _sectorController.dispose();
+    _projectController.dispose();
     _memberController.dispose();
-    _instController.dispose();
+    _investProjectController.dispose();
+    _donorController.dispose();
+    _bankController.dispose();
     _amountController.dispose();
     _noteController.dispose();
-    _acctController.dispose();
     super.dispose();
   }
 
-  bool get _needsMember => ['share_in', 'donation', 'payout', 'plan_dep'].contains(_type);
+  List<SectorModel> get _activeSectors =>
+      (_dir == 'in' ? _incomeSectors : _expenseSectors).where((s) => s.isActive).toList();
+
+  bool get _isProjectSector => _sector?.key == SectorModel.keyProkolpo;
+  bool get _isShareholderSector => _sector?.key == SectorModel.keyShareholder;
+  bool get _isDonationSector => _sector?.key == SectorModel.keyDonation;
+
+  void _resetEntity() {
+    _projectId = '';
+    _projectController.clear();
+    _memberNo = '';
+    _memberController.clear();
+    _investProjectId = '';
+    _investProjectController.clear();
+    _donorController.clear();
+  }
+
+  void _setDir(String dir) {
+    setState(() {
+      _dir = dir;
+      _sector = null;
+      _sectorController.clear();
+      _resetEntity();
+    });
+  }
+
+  void _onSectorSelected(String name) {
+    SectorModel? found;
+    for (final s in _activeSectors) {
+      if (s.name == name) {
+        found = s;
+        break;
+      }
+    }
+    setState(() {
+      _sector = found;
+      _resetEntity();
+    });
+  }
+
+  String _projectIdByName(String name) {
+    for (final p in _projects) {
+      if (p.name == name) return p.id;
+    }
+    return '';
+  }
+
+  String _memberNoFromLabel(String label) => label.split(' - ').first.trim();
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +190,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
           ),
         ),
         body: GradientBackground(
-          child: _isLoadingMembers
+          child: _isLoading
               ? const Center(child: Loader())
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
@@ -164,24 +221,59 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Transaction Type Dropdown via OptionPickerBottomSheetHelper
-                        CustomDropdownField(
-                          label: 'লেনদেনের ধরন',
-                          controller: _typeController,
-                          isRequired: true,
-                          sheetTitle: 'লেনদেনের ধরন নির্বাচন করুন',
-                          options: _types.map((t) => t['title']!).toList(),
-                          onChanged: (selectedTitle) {
-                            final match = _types.firstWhere((t) => t['title'] == selectedTitle);
-                            setState(() {
-                              _type = match['key']!;
-                            });
-                          },
+                        // ১. আয় / ব্যয়
+                        _sectionLabel('লেনদেনের ধরন'),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SelectableChip(
+                                label: 'আয় (Income)',
+                                showCheckmark: false,
+                                isSelected: _dir == 'in',
+                                onSelected: () => _setDir('in'),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: SelectableChip(
+                                label: 'ব্যয় (Expense)',
+                                showCheckmark: false,
+                                isSelected: _dir == 'out',
+                                onSelected: () => _setDir('out'),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
 
-                        // Member Picker via Searchable OptionPickerBottomSheetHelper
-                        if (_needsMember) ...[
+                        // ২. খাত
+                        CustomDropdownField(
+                          label: 'খাত',
+                          controller: _sectorController,
+                          isRequired: true,
+                          isSearchable: true,
+                          sheetTitle: _dir == 'in' ? 'আয়ের খাত নির্বাচন করুন' : 'ব্যয়ের খাত নির্বাচন করুন',
+                          options: _activeSectors.map((s) => s.name).toList(),
+                          onChanged: _onSectorSelected,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ৩. খাত অনুযায়ী পরের ধাপ
+                        if (_isProjectSector) ...[
+                          CustomDropdownField(
+                            label: 'প্রকল্প নির্বাচন করুন',
+                            controller: _projectController,
+                            isRequired: true,
+                            isSearchable: true,
+                            sheetTitle: 'প্রকল্প নির্বাচন করুন',
+                            options: _projects.map((p) => p.name).toList(),
+                            onChanged: (name) => setState(() => _projectId = _projectIdByName(name)),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        if (_isShareholderSector) ...[
                           CustomDropdownField(
                             label: 'সদস্য নির্বাচন করুন',
                             controller: _memberController,
@@ -190,25 +282,37 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             hintText: 'শেয়ারহোল্ডার নির্বাচন করুন',
                             sheetTitle: 'সদস্য নির্বাচন করুন',
                             options: _members.map((m) => '${m.no} - ${m.displayName}').toList(),
-                            onChanged: (val) {
-                              final memberNo = val.split(' - ').first.trim();
-                              setState(() {
-                                _selectedMember = memberNo;
-                              });
-                            },
+                            onChanged: (val) => setState(() => _memberNo = _memberNoFromLabel(val)),
                           ),
                           const SizedBox(height: 16),
                         ],
 
-                        // Payment Mode Selector (Cash / Bank / Inst)
-                        Text(
-                          'পরিশোধের মাধ্যম (Payment Mode)',
-                          style: GoogleFonts.notoSansBengali(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                        // আয় → শেয়ারহোল্ডার: বিনিয়োগ কোন প্রকল্পের জন্য (ঐচ্ছিক)
+                        if (_isShareholderSector && _dir == 'in') ...[
+                          CustomDropdownField(
+                            label: 'সংশ্লিষ্ট প্রকল্প (ঐচ্ছিক)',
+                            controller: _investProjectController,
+                            isSearchable: true,
+                            sheetTitle: 'প্রকল্প নির্বাচন করুন',
+                            options: [_noProjectLabel, ..._projects.map((p) => p.name)],
+                            onChanged: (name) => setState(
+                              () => _investProjectId = name == _noProjectLabel ? '' : _projectIdByName(name),
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        if (_isDonationSector) ...[
+                          CustomTextField(
+                            label: 'ডোনেশন গ্রহীতা / বিবরণ (ঐচ্ছিক)',
+                            controller: _donorController,
+                            hintText: 'যেমন: বন্যা ত্রাণ',
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // ৪. পরিশোধের মাধ্যম
+                        _sectionLabel('পরিশোধের মাধ্যম (Payment Mode)'),
                         const SizedBox(height: 6),
                         Row(
                           children: [
@@ -233,46 +337,31 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                 onSelected: () => setState(() => _mode = 'bank'),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: SelectableChip(
-                                label: 'প্রতিষ্ঠান (Inst)',
-                                showCheckmark: false,
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                                fontSize: 12,
-                                isSelected: _mode == 'inst',
-                                onSelected: () => setState(() => _mode = 'inst'),
-                              ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 16),
 
                         if (_mode == 'bank') ...[
-                          CustomTextField(
-                            label: 'ব্যাংক হিসাব নম্বর / শাখা',
-                            controller: _acctController,
-                            hintText: 'যেমন: হিসাব নং ০১০০... / ইসলামী ব্যাংক',
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        if (_mode == 'inst') ...[
                           CustomDropdownField(
-                            label: 'প্রতিষ্ঠান নির্বাচন করুন',
-                            controller: _instController,
+                            label: 'ব্যাংক হিসাব নির্বাচন করুন',
+                            controller: _bankController,
                             isRequired: true,
                             isSearchable: true,
-                            hintText: 'প্রতিষ্ঠান নির্বাচন করুন',
-                            sheetTitle: 'প্রতিষ্ঠান নির্বাচন করুন',
-                            options: _institutions,
-                            onChanged: (val) {
-                              _acctController.text = val;
+                            sheetTitle: 'ব্যাংক হিসাব নির্বাচন করুন',
+                            options: _banks.map((b) => b.displayName).toList(),
+                            onChanged: (name) {
+                              for (final b in _banks) {
+                                if (b.displayName == name) {
+                                  setState(() => _bankId = b.id);
+                                  break;
+                                }
+                              }
                             },
                           ),
                           const SizedBox(height: 16),
                         ],
 
+                        // ৫. পরিমাণ, মন্তব্য
                         CustomTextField(
                           label: 'টাকার পরিমাণ (টাকা)',
                           controller: _amountController,
@@ -308,8 +397,35 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     );
   }
 
+  Widget _sectionLabel(String text) => Text(
+        text,
+        style: GoogleFonts.notoSansBengali(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+        ),
+      );
+
   void _saveTransaction() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final sector = _sector;
+    if (sector == null) {
+      AppNotifier.showErrorSnackBar(context, 'খাত নির্বাচন করুন');
+      return;
+    }
+    if (_isProjectSector && _projectId.isEmpty) {
+      AppNotifier.showErrorSnackBar(context, 'প্রকল্প নির্বাচন করুন');
+      return;
+    }
+    if (_isShareholderSector && _memberNo.isEmpty) {
+      AppNotifier.showErrorSnackBar(context, 'সদস্য নির্বাচন করুন');
+      return;
+    }
+    if (_mode == 'bank' && _bankId.isEmpty) {
+      AppNotifier.showErrorSnackBar(context, 'ব্যাংক হিসাব নির্বাচন করুন');
+      return;
+    }
 
     final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
     if (amount <= 0) {
@@ -317,18 +433,34 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       return;
     }
 
+    String project = '';
+    if (_isProjectSector) project = _projectId;
+    if (_isShareholderSector && _dir == 'in') project = _investProjectId;
+
+    String acct = '';
+    if (_mode == 'bank') acct = _bankId;
+
+    var note = _noteController.text.trim();
+    if (_isDonationSector && _donorController.text.trim().isNotEmpty) {
+      final donor = 'গ্রহীতা: ${_donorController.text.trim()}';
+      note = note.isEmpty ? donor : '$donor | $note';
+    }
+
     final trx = TransactionModel(
       id: '',
       vno: _vnoController.text.trim(),
       date: DateFormatter.yyyyMMdd(_dateController.text.trim()),
-      type: _type,
-      member: _needsMember ? _selectedMember : '',
+      dir: _dir,
+      sectorId: sector.id,
+      sectorKey: sector.key,
+      sectorName: sector.name,
+      project: project,
+      member: _isShareholderSector ? _memberNo : '',
+      kind: '', // manual voucher, never the profit formula
       mode: _mode,
-      acct: _mode == 'inst' && _acctController.text.trim().isEmpty
-          ? _instController.text.trim()
-          : _acctController.text.trim(),
+      acct: acct,
       amount: amount,
-      note: _noteController.text.trim(),
+      note: note,
     );
 
     context.read<TransactionBloc>().add(TransactionAddRequested(trx));

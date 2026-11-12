@@ -142,7 +142,7 @@ class _TransactionRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        t.typeTitle,
+                        t.title,
                         style: GoogleFonts.notoSansBengali(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,

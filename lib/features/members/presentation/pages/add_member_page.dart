@@ -158,51 +158,69 @@ class _AddMemberPageState extends State<AddMemberPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Photo Picker Section
+                  // Photo Picker Section (Matching Nominee Field)
                   Center(
-                    child: GestureDetector(
-                      onTap: _showPhotoOptions,
-                      child: Stack(
-                        children: [
-                          MemberAvatar(
-                            photo: _photo,
-                            fallbackText: _noController.text.isNotEmpty ? _noController.text : 'ছবি',
-                            size: 92,
-                            border: Border.all(color: AppColors.accentYellow, width: 3),
-                          ),
-                          Positioned(
-                            bottom: 2,
-                            right: 2,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.white, width: 2),
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onTap: _showPhotoOptions,
+                          child: Stack(
+                            children: [
+                              MemberAvatar(
+                                photo: _photo,
+                                fallbackText: _noController.text.isNotEmpty ? _noController.text : 'সদস্য',
+                                width: 84,
+                                height: 104,
+                                isCircle: false,
+                                borderRadius: 12,
+                                border: Border.all(
+                                  color: AppColors.accent,
+                                  width: 2.5,
+                                ),
                               ),
-                              child: const HugeIcon(
-                                icon: HugeIcons.strokeRoundedCamera01,
-                                size: 14,
-                                color: AppColors.white,
+                              Positioned(
+                                bottom: 2,
+                                right: 2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.2),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                  child: const HugeIcon(
+                                    icon: HugeIcons.strokeRoundedCamera01,
+                                    size: 15,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Center(
-                    child: GestureDetector(
-                      onTap: _showPhotoOptions,
-                      child: Text(
-                        _photo == null ? 'ছবি আপলোড করুন' : 'ছবি পরিবর্তন করুন',
-                        style: GoogleFonts.notoSansBengali(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'সদস্যের ছবি নির্বাচন করতে ট্যাপ করুন',
+                          style: GoogleFonts.notoSansBengali(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          '(পাসপোর্ট সাইজ ছবি ৩.৫ × ৪.৫ সেমি)',
+                          style: GoogleFonts.notoSansBengali(
+                            fontSize: 11,
+                            color: AppColors.textLight,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 20),

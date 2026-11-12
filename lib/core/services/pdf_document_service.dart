@@ -9,7 +9,11 @@ import 'package:sampriti/core/config/app_config.dart';
 import 'package:sampriti/core/config/assets.dart';
 import 'package:sampriti/core/utils/helpers/date_formatter.dart';
 import 'package:sampriti/features/dashboard/data/models/dashboard_summary_model.dart';
+import 'package:sampriti/features/meetings/data/models/meeting_model.dart';
 import 'package:sampriti/features/members/data/models/member_model.dart';
+import 'package:sampriti/features/reports/data/models/financial_report_model.dart';
+import 'package:sampriti/features/reports/data/models/report_period.dart';
+import 'package:sampriti/features/reports/data/models/ledger_report.dart';
 import 'package:sampriti/features/transactions/data/models/transaction_model.dart';
 
 class PdfDocumentService {
@@ -31,6 +35,7 @@ class PdfDocumentService {
   static pw.Font? _bengaliBold;
   static pw.Font? _robotoBase;
   static pw.Font? _robotoBold;
+  static pw.Font? _robotoItalic;
   static Uint8List? _logoBytes;
 
   static Future<void> _initResources() async {
@@ -38,6 +43,7 @@ class PdfDocumentService {
     _bengaliBold ??= await PdfGoogleFonts.notoSansBengaliBold();
     _robotoBase ??= await PdfGoogleFonts.robotoRegular();
     _robotoBold ??= await PdfGoogleFonts.robotoBold();
+    _robotoItalic ??= await PdfGoogleFonts.robotoItalic();
 
     if (_logoBytes == null) {
       try {
@@ -132,6 +138,7 @@ class PdfDocumentService {
     pw.EdgeInsets cellPadding = const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
     Map<int, pw.Alignment>? columnAlignments,
     bool alternateRowColors = true,
+    List<String>? footerRow,
   }) {
     return pw.Table(
       columnWidths: columnWidths,
@@ -184,7 +191,64 @@ class PdfDocumentService {
             }).toList(),
           );
         }),
+        if (footerRow != null)
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFFFFDF7)),
+            children: footerRow.asMap().entries.map((cellEntry) {
+              final colIdx = cellEntry.key;
+              final align = columnAlignments?[colIdx] ?? cellAlignment;
+              return pw.Padding(
+                padding: cellPadding,
+                child: pw.Align(
+                  alignment: align,
+                  child: _text(
+                    cellEntry.value,
+                    style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: _ink),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
       ],
+    );
+  }
+
+  /// Bordered stat box: muted label, bold value. Shared by the report and ledger PDFs.
+  static pw.Widget _statCell(String label, num val, {PdfColor? color}) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(6),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: _rule, width: 0.5),
+        borderRadius: pw.BorderRadius.circular(4),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          _text(label, style: const pw.TextStyle(fontSize: 7.5, color: _muted)),
+          pw.SizedBox(height: 2),
+          _text(
+            '৳ ${_formatAmount(val)}',
+            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: color ?? _ink),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Signature line row with one labelled block per name.
+  static pw.Widget _signatureRow(List<String> labels) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: labels
+          .map((l) => pw.Column(
+                children: [
+                  pw.SizedBox(height: 28),
+                  pw.Container(width: 110, height: 0.75, color: _ink),
+                  pw.SizedBox(height: 4),
+                  _text(l, style: const pw.TextStyle(fontSize: 8, color: _ink)),
+                ],
+              ))
+          .toList(),
     );
   }
 
@@ -409,12 +473,26 @@ class PdfDocumentService {
 
 
   // ==========================================
-  // 1. SHARE CERTIFICATE
+  // 1. SHARE CERTIFICATE (100% English & Large Royal Typography)
   // ==========================================
   static Future<Uint8List> generateShareCertificate(MemberModel member) async {
     await _initResources();
     final doc = pw.Document(theme: _getTheme());
     final photo = _parseImage(member.photo);
+
+    // Single English recipient name (no duplicate dual lines)
+    final recipientName = member.nameEn.trim().isNotEmpty ? member.nameEn.trim() : member.displayName;
+
+    String numberToWord(int n) {
+      const words = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+      if (n > 0 && n < words.length) return words[n];
+      return '$n';
+    }
+
+    final shareWord = numberToWord(member.shares);
+    final sharesText = member.shares == 1
+        ? '1 ($shareWord) Ordinary Share'
+        : '${member.shares} ($shareWord) Ordinary Shares';
 
     doc.addPage(
       pw.Page(
@@ -424,120 +502,216 @@ class PdfDocumentService {
           return pw.Container(
             decoration: pw.BoxDecoration(
               color: _cream,
-              border: pw.Border.all(color: _maroon, width: 2.5),
+              border: pw.Border.all(color: _maroon, width: 3.0),
             ),
             padding: const pw.EdgeInsets.all(6),
             child: pw.Container(
               decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: _gold, width: 1.0),
+                border: pw.Border.all(color: _gold, width: 1.5),
               ),
-              padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              padding: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 24),
               child: pw.Column(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  // Unified Header
-                  _headerBlock(
-                    title: 'শেয়ার সনদপত্র',
-                    leftMetaLabel: 'সনদ নং :',
-                    leftMetaValue: 'CERT-${member.no}',
-                    metaLabel: 'শেয়ার নং :',
-                    metaValue: member.no,
+                  // Top Organization Header Block
+                  pw.Column(
+                    children: [
+                      if (_logoBytes != null)
+                        pw.Center(
+                          child: pw.Image(
+                            pw.MemoryImage(_logoBytes!),
+                            height: 48,
+                            fit: pw.BoxFit.contain,
+                          ),
+                        ),
+                      pw.SizedBox(height: 8),
+                      pw.Text(
+                        'SAMPRITI INVESTMENT FORUM',
+                        style: pw.TextStyle(
+                          font: _robotoBold,
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                          color: _maroonDark,
+                          letterSpacing: 2.0,
+                        ),
+                      ),
+                      pw.SizedBox(height: 12),
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 5),
+                        decoration: const pw.BoxDecoration(
+                          color: _maroon,
+                          borderRadius: pw.BorderRadius.all(pw.Radius.circular(16)),
+                        ),
+                        child: pw.Text(
+                          'SHARE CERTIFICATE',
+                          style: pw.TextStyle(
+                            font: _robotoBold,
+                            fontSize: 13,
+                            fontWeight: pw.FontWeight.bold,
+                            color: _white,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ),
+                      pw.SizedBox(height: 12),
+                      pw.Text(
+                        'Certificate No: CERT-${member.no}',
+                        style: pw.TextStyle(
+                          font: _robotoBold,
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                          color: _muted,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
-                  pw.SizedBox(height: 10),
 
-                  // Member Photo Frame
+                  // Member Photo Frame (Large & Prestigious)
                   pw.Container(
-                    width: 78,
-                    height: 96,
+                    width: 95,
+                    height: 120,
                     decoration: pw.BoxDecoration(
-                      border: pw.Border.all(color: _gold, width: 1.5),
+                      border: pw.Border.all(color: _gold, width: 2.0),
                       color: _white,
                     ),
                     child: photo != null
                         ? pw.Image(photo, fit: pw.BoxFit.cover)
                         : pw.Center(
-                            child: _text(
+                            child: pw.Text(
                               member.no,
                               style: pw.TextStyle(
-                                fontSize: 13,
+                                font: _robotoBold,
+                                fontSize: 16,
                                 fontWeight: pw.FontWeight.bold,
                                 color: _muted,
                               ),
                             ),
                           ),
                   ),
-                  pw.SizedBox(height: 12),
 
-                  // Official Bengali Statement
-                  _text(
-                    'এই মর্মে প্রত্যয়ন করা যাইতেছে যে,',
-                    style: const pw.TextStyle(fontSize: 10, color: _muted),
-                  ),
-                  pw.SizedBox(height: 4),
-                  _text(
-                    member.displayName,
-                    style: pw.TextStyle(
-                      fontSize: 18,
-                      fontWeight: pw.FontWeight.bold,
-                      color: _maroonDark,
-                    ),
-                  ),
-                  if (member.nameEn.isNotEmpty) ...[
-                    pw.SizedBox(height: 2),
-                    _text(
-                      member.nameEn,
-                      style: pw.TextStyle(
-                        fontSize: 10,
-                        fontWeight: pw.FontWeight.bold,
-                        color: _muted,
-                      ),
-                    ),
-                  ],
-                  pw.SizedBox(height: 10),
-
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 16),
-                    child: _text(
-                      '“সম্প্রীতি” সংগঠনের একজন নিবন্ধিত শেয়ারহোল্ডার এবং নিম্নে উল্লিখিত শেয়ারের ধারক। পিতা: ${member.father.isNotEmpty ? member.father : "—"}, মাতা: ${member.mother.isNotEmpty ? member.mother : "—"}, ঠিকানা: ${member.address.isNotEmpty ? member.address : "—"}। মোট শেয়ার সংখ্যা: ${member.shares} টি। তিনি সংগঠনের সকল নিয়ম ও নীতিমালার আওতাভুক্ত।',
-                      textAlign: pw.TextAlign.center,
-                      style: const pw.TextStyle(fontSize: 9.5, lineSpacing: 1.45, color: _ink),
-                    ),
-                  ),
-                  pw.SizedBox(height: 10),
-
-                  _text(
-                    'শেয়ার নম্বর: ${member.no}',
-                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: _muted),
-                  ),
-                  pw.SizedBox(height: 24),
-
-                  // Signatures Block (Matching HTML spec: শেয়ার হোল্ডার, সাধারণ সম্পাদক, সভাপতি)
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  // Preamble & Recipient Name
+                  pw.Column(
                     children: [
-                      pw.Column(
-                        children: [
-                          pw.Container(width: 120, height: 0.75, color: _muted),
-                          pw.SizedBox(height: 4),
-                          _text('শেয়ার হোল্ডার\n(স্বাক্ষর)', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8, color: _ink)),
-                        ],
+                      pw.Text(
+                        'This is to certify that',
+                        style: pw.TextStyle(
+                          font: _robotoItalic ?? _robotoBase,
+                          fontSize: 14,
+                          fontStyle: pw.FontStyle.italic,
+                          color: _muted,
+                        ),
                       ),
-                      pw.Column(
-                        children: [
-                          pw.Container(width: 120, height: 0.75, color: _muted),
-                          pw.SizedBox(height: 4),
-                          _text('সাধারণ সম্পাদক\n(স্বাক্ষর)', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8, color: _ink)),
-                        ],
+                      pw.SizedBox(height: 8),
+                      // Single English Name (Prominent & Large)
+                      pw.Text(
+                        recipientName.toUpperCase(),
+                        textAlign: pw.TextAlign.center,
+                        style: pw.TextStyle(
+                          font: _robotoBold,
+                          fontSize: 26,
+                          fontWeight: pw.FontWeight.bold,
+                          color: _maroonDark,
+                          letterSpacing: 1.2,
+                        ),
                       ),
-                      pw.Column(
-                        children: [
-                          pw.Container(width: 120, height: 0.75, color: _muted),
-                          pw.SizedBox(height: 4),
-                          _text('সভাপতি\n(স্বাক্ষর)', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8, color: _ink)),
-                        ],
+                      pw.SizedBox(height: 4),
+                      pw.Container(
+                        width: 220,
+                        height: 1.5,
+                        color: _gold,
                       ),
                     ],
+                  ),
+
+                  // Certificate Body Statement (Large & Readable)
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 16),
+                    child: pw.Text(
+                      'is a bonafide registered shareholder of Sampriti Investment Forum, holding $sharesText under Share No. ${member.no}. The shareholder is entitled to all rights, privileges, and dividend distributions in accordance with the constitution and regulations of the forum.',
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        font: _robotoBase,
+                        fontSize: 14,
+                        lineSpacing: 1.6,
+                        color: _ink,
+                      ),
+                    ),
+                  ),
+
+                  // Share Details Badge
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: _goldDark, width: 1.0),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                      color: _white,
+                    ),
+                    child: pw.Text(
+                      'Share No: ${member.no}  |  Shares Held: ${member.shares}',
+                      style: pw.TextStyle(
+                        font: _robotoBold,
+                        fontSize: 11.5,
+                        fontWeight: pw.FontWeight.bold,
+                        color: _goldDark,
+                      ),
+                    ),
+                  ),
+
+                  // Signatures Block (Shareholder, General Secretary, President)
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 12),
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Column(
+                          children: [
+                            pw.Container(width: 130, height: 1.0, color: _ink),
+                            pw.SizedBox(height: 6),
+                            pw.Text(
+                              'Shareholder',
+                              style: pw.TextStyle(
+                                font: _robotoBold,
+                                fontSize: 11.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: _ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                        pw.Column(
+                          children: [
+                            pw.Container(width: 130, height: 1.0, color: _ink),
+                            pw.SizedBox(height: 6),
+                            pw.Text(
+                              'General Secretary',
+                              style: pw.TextStyle(
+                                font: _robotoBold,
+                                fontSize: 11.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: _ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                        pw.Column(
+                          children: [
+                            pw.Container(width: 130, height: 1.0, color: _ink),
+                            pw.SizedBox(height: 6),
+                            pw.Text(
+                              'President',
+                              style: pw.TextStyle(
+                                font: _robotoBold,
+                                fontSize: 11.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: _ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1030,11 +1204,13 @@ class PdfDocumentService {
               pw.SizedBox(height: 12),
 
               // Table Content
-              buildVoucherRow('লেনদেনের ধরন', trx.typeTitle),
+              buildVoucherRow('লেনদেনের ধরন', trx.title),
+              if (trx.sectorName.isNotEmpty)
+                buildVoucherRow('খাত', trx.sectorName),
+              if (trx.project.isNotEmpty)
+                buildVoucherRow('প্রকল্প', trx.project),
               if (trx.member.isNotEmpty)
                 buildVoucherRow('সদস্য', memberName != null && memberName.isNotEmpty ? '$memberName (${trx.member})' : trx.member),
-              if (trx.inst.isNotEmpty)
-                buildVoucherRow('প্রতিষ্ঠান', instName != null && instName.isNotEmpty ? instName : trx.inst),
               buildVoucherRow('পরিশোধের মাধ্যম', _getModeTitle(trx.mode)),
               if (trx.acct.isNotEmpty)
                 buildVoucherRow('ব্যাংক / হিসাব নং', bankName != null && bankName.isNotEmpty ? bankName : trx.acct),
@@ -1205,9 +1381,9 @@ class PdfDocumentService {
                 buildStatCell('সর্বমোট তহবিল', summary.totalFunds, color: _success),
               ]),
               pw.TableRow(children: [
-                buildStatCell('প্রতিষ্ঠানে মোট বিনিয়োগ', summary.institutionInvestment),
-                buildStatCell('লোন বকেয়া', summary.loanOutstanding, color: _error),
-                buildStatCell('প্রতিষ্ঠান থেকে আয়', summary.institutionIncome, color: _success),
+                buildStatCell('প্রকল্পে মোট ব্যয়', summary.projectExpense),
+                buildStatCell('শেয়ারহোল্ডারকে মূলধন ফেরত', summary.capitalReturn, color: _error),
+                buildStatCell('প্রকল্প থেকে আয়', summary.projectIncome, color: _success),
                 buildStatCell('বণ্টনকৃত মুনাফা', summary.totalPayout, color: _maroon),
               ]),
             ],
@@ -1222,7 +1398,7 @@ class PdfDocumentService {
           pw.Table(
             children: [
               pw.TableRow(children: [
-                buildStatCell('মোট অনুদান/ডোনেশন', summary.totalDonation),
+                buildStatCell('মোট ডোনেশন ব্যয়', summary.donationExpense),
                 buildStatCell('মোট ব্যয়/খরচ', summary.totalExpense, color: _error),
                 buildStatCell('বণ্টনযোগ্য অবশিষ্ট মুনাফা', summary.distributableProfit, color: _goldDark),
                 buildStatCell('বকেয়া মুনাফা পাওনা', summary.pendingPayout, color: _error),
@@ -1239,11 +1415,11 @@ class PdfDocumentService {
             _buildTable(
               headers: ['ভাউচার নং', 'তারিখ', 'লেনদেনের ধরন', 'সদস্য/প্রতিষ্ঠান', 'মাধ্যম', 'টাকার পরিমাণ'],
               data: summary.recentTransactions.take(15).map((t) {
-                final target = t.member.isNotEmpty ? t.member : t.inst.isNotEmpty ? t.inst : '—';
+                final target = t.member.isNotEmpty ? t.member : t.project.isNotEmpty ? t.project : '—';
                 return [
                   t.vno,
                   DateFormatter.ddMMyyyy(t.date),
-                  t.typeTitle,
+                  t.title,
                   target,
                   _getModeTitle(t.mode),
                   '৳ ${_formatAmount(t.amount)}',
@@ -1463,6 +1639,454 @@ class PdfDocumentService {
   // ==========================================
   // 8. TRANSACTION LEDGER REPORT
   // ==========================================
+  /// Meeting resolution sheet (মিটিং রেজুলেশন): info, agenda-wise decisions, extra decisions,
+  /// attendance with signatures, closing statement, president signature.
+  static Future<Uint8List> generateMeetingResolutionPdf(MeetingModel m) async {
+    await _initResources();
+    final doc = pw.Document(theme: _getTheme());
+    final nowStr = DateFormat('dd/MM/yyyy').format(DateTime.now());
+
+    pw.Widget infoLine(String label, String value) => pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(vertical: 2),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.SizedBox(
+                width: 90,
+                child: _text(label, style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: _maroon)),
+              ),
+              pw.Expanded(
+                child: _text(value.isEmpty ? '—' : value, style: const pw.TextStyle(fontSize: 9.5, color: _ink)),
+              ),
+            ],
+          ),
+        );
+
+    pw.Widget section(String t) => pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 12, bottom: 5),
+          child: _text(t, style: pw.TextStyle(fontSize: 10.5, fontWeight: pw.FontWeight.bold, color: _maroon)),
+        );
+
+    final typeLine = [MeetingType.monthly, MeetingType.emergency, MeetingType.agm]
+        .map((t) => '[${m.type == t ? 'x' : ' '}] ${MeetingType.label(t)}')
+        .join('    ');
+
+    final agendaRows = [
+      for (var i = 0; i < m.agendas.length; i++)
+        [
+          bnDigits('${i + 1}'),
+          m.agendas[i],
+          i < m.agendaDecisions.length && m.agendaDecisions[i].isNotEmpty ? m.agendaDecisions[i] : '—',
+        ],
+    ];
+
+    final attRows = [
+      for (var i = 0; i < m.attendance.length; i++)
+        [
+          bnDigits('${i + 1}'),
+          m.attendance[i].name,
+          m.attendance[i].designation.isEmpty ? '—' : m.attendance[i].designation,
+          m.attendance[i].present ? 'উপস্থিত' : 'অনুপস্থিত',
+          m.attendance[i].signature,
+        ],
+    ];
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.symmetric(horizontal: 36, vertical: 30),
+        header: (context) => pw.Column(
+          children: [
+            _headerBlock(title: 'মিটিং রেজুলেশন', metaLabel: 'তারিখ :', metaValue: nowStr),
+            pw.SizedBox(height: 6),
+          ],
+        ),
+        footer: (context) => pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            _text('সম্প্রীতি — মিটিং রেজুলেশন নথিপত্র', style: const pw.TextStyle(fontSize: 7, color: _muted)),
+            _text('পৃষ্ঠা ${context.pageNumber} / ${context.pagesCount}',
+                style: const pw.TextStyle(fontSize: 7, color: _muted)),
+          ],
+        ),
+        build: (context) => [
+          // 1. Meeting info
+          section('১. সভার ধরণ ও বিবরণ'),
+          _text(typeLine, style: const pw.TextStyle(fontSize: 9, color: _ink)),
+          pw.SizedBox(height: 4),
+          infoLine('তারিখ', m.uiDate),
+          infoLine('সময়', m.time),
+          infoLine('স্থান', m.place),
+          infoLine('সভাপতিত্বে', m.presiding),
+          infoLine('সভার উদ্দেশ্য', m.purpose),
+
+          // 2. Agenda + decisions
+          section('২. সভার এজেন্ডা ও গৃহীত সিদ্ধান্তসমূহ'),
+          _buildTable(
+            headers: ['ক্রমিক', 'এজেন্ডা', 'গৃহীত সিদ্ধান্ত'],
+            data: agendaRows,
+            columnWidths: const {
+              0: pw.FixedColumnWidth(40),
+              1: pw.FlexColumnWidth(2),
+              2: pw.FlexColumnWidth(3),
+            },
+            cellStyle: const pw.TextStyle(fontSize: 8, color: _ink),
+            cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+          ),
+
+          // 3. Extra decisions
+          if (m.extraDecisions.isNotEmpty) ...[
+            section('৩. অতিরিক্ত সিদ্ধান্তসমূহ'),
+            for (var i = 0; i < m.extraDecisions.length; i++)
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 3),
+                child: _text('${bnDigits('${i + 1}')}. ${m.extraDecisions[i]}',
+                    style: const pw.TextStyle(fontSize: 9, color: _ink)),
+              ),
+          ],
+
+          // 4. Attendance
+          section('৪. উপস্থিতি ও স্বাক্ষর'),
+          _buildTable(
+            headers: ['ক্রমিক', 'সদস্যের নাম', 'পদবী', 'উপস্থিতি', 'স্বাক্ষর'],
+            data: attRows,
+            columnWidths: const {
+              0: pw.FixedColumnWidth(40),
+              1: pw.FlexColumnWidth(2),
+              2: pw.FlexColumnWidth(2),
+              3: pw.FlexColumnWidth(1.4),
+              4: pw.FlexColumnWidth(2),
+            },
+            cellStyle: const pw.TextStyle(fontSize: 8, color: _ink),
+            cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+            footerRow: ['মোট উপস্থিত', '', '', '${bnDigits('${m.presentCount}')} জন', ''],
+          ),
+
+          // 5. Closing
+          section('৫. সমাপ্তি ঘোষণা'),
+          _text(m.closing.isEmpty ? _defaultMeetingClosing : m.closing,
+              style: const pw.TextStyle(fontSize: 9, color: _ink)),
+
+          // 6. President signature
+          pw.SizedBox(height: 36),
+          pw.Align(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Column(
+              children: [
+                pw.Container(width: 150, height: 0.75, color: _ink),
+                pw.SizedBox(height: 4),
+                _text('সভাপতি', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: _ink)),
+                _text('সম্প্রীতি', style: const pw.TextStyle(fontSize: 8, color: _muted)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return doc.save();
+  }
+
+  static const String _defaultMeetingClosing =
+      'সভায় আর কোনো আলোচনা না থাকায় সভাপতি মহোদয় উপস্থিত সকলকে ধন্যবাদ জানিয়ে সভার সমাপ্তি ঘোষণা করেন।';
+
+  /// Detailed financial report for one period: summary, funds, monthly trend, projects,
+  /// sectors, members. Portrait A4 with compact tables.
+  static Future<Uint8List> generateDetailedFinancialReportPdf(FinancialReportModel r) async {
+    await _initResources();
+    final doc = pw.Document(theme: _getTheme());
+    final nowStr = DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now());
+
+    pw.Widget sectionTitle(String t) => pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 12, bottom: 5),
+          child: _text(t, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: _maroon)),
+        );
+
+    pw.Widget table(List<String> h, List<List<String>> d, {List<String>? foot, Map<int, pw.Alignment>? align}) {
+      final cols = <int, pw.TableColumnWidth>{
+        for (var i = 0; i < h.length; i++) i: const pw.FlexColumnWidth(1),
+      };
+      return _buildTable(
+        headers: h,
+        data: d,
+        columnWidths: cols,
+        columnAlignments: align,
+        cellStyle: const pw.TextStyle(fontSize: 7, color: _ink),
+        footerRow: foot,
+      );
+    }
+
+    String amt(double v) => _formatAmount(v);
+    final right = <int, pw.Alignment>{
+      for (var i = 1; i < 12; i++) i: pw.Alignment.centerRight,
+    };
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+        header: (context) => pw.Column(
+          children: [
+            _headerBlock(title: 'আর্থিক বিবরণী প্রতিবেদন', metaLabel: 'তারিখ :', metaValue: nowStr),
+            pw.SizedBox(height: 4),
+            _text('সময়কাল: ${r.period.label}', style: const pw.TextStyle(fontSize: 8, color: _muted)),
+            pw.SizedBox(height: 6),
+          ],
+        ),
+        footer: (context) => pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            _text('সম্প্রীতি ইনভেস্টমেন্ট ফোরাম • সর্বস্বত্ব সংরক্ষিত',
+                style: const pw.TextStyle(fontSize: 7, color: _muted)),
+            _text('পৃষ্ঠা ${context.pageNumber} / ${context.pagesCount}',
+                style: const pw.TextStyle(fontSize: 7, color: _muted)),
+          ],
+        ),
+        build: (context) => [
+          pw.Table(children: [
+            pw.TableRow(children: [
+              _statCell('মোট আয়', r.totalIncome, color: _success),
+              _statCell('মোট ব্যয়', r.totalExpense, color: _error),
+              _statCell('মুনাফা বণ্টন', r.totalPayout, color: _maroon),
+              _statCell('নিট ফলাফল', r.netResult, color: _goldDark),
+            ]),
+            pw.TableRow(children: [
+              _statCell('প্রারম্ভিক তহবিল', r.openingFunds),
+              _statCell('সমাপনী তহবিল', r.closingFunds, color: _success),
+              _statCell('ভাউচার সংখ্যা', r.voucherCount),
+              _statCell('ব্যাংক স্থানান্তর', r.transferCount),
+            ]),
+          ]),
+
+          sectionTitle('১. নগদ ও ব্যাংক'),
+          table(
+            ['হিসাব', 'শুরুর স্থিতি', 'জমা', 'উত্তোলন', 'সমাপনী স্থিতি'],
+            [for (final f in r.funds) [f.name, amt(f.opening), amt(f.inflow), amt(f.outflow), amt(f.closing)]],
+            foot: ['মোট', amt(r.openingFunds), amt(r.funds.fold(0.0, (s, f) => s + f.inflow)),
+                amt(r.funds.fold(0.0, (s, f) => s + f.outflow)), amt(r.closingFunds)],
+            align: right,
+          ),
+
+          sectionTitle('২. Monthly Trend'),
+          table(
+            ['মাস', 'আয়', 'ব্যয়', 'মুনাফা বণ্টন', 'নিট'],
+            [for (final m in r.months) [m.label, amt(m.income), amt(m.expense), amt(m.payout), amt(m.net)]],
+            foot: [
+              'মোট',
+              amt(r.totalIncome),
+              amt(r.totalExpense),
+              amt(r.totalPayout),
+              amt(r.netResult),
+            ],
+            align: right,
+          ),
+
+          sectionTitle('৩. প্রকল্পভিত্তিক'),
+          table(
+            ['প্রকল্প', 'অবস্থা', 'বাজেট', 'আয়', 'ব্যয়', 'নিট', 'বণ্টিত', 'সদস্য বিনিয়োগ', 'সদস্য'],
+            [
+              for (final p in r.projects)
+                [
+                  p.name,
+                  p.isActive ? 'চলমান' : 'সমাপ্ত',
+                  p.budget > 0 ? amt(p.budget) : '—',
+                  amt(p.income),
+                  amt(p.expense),
+                  amt(p.net),
+                  amt(p.payout),
+                  amt(p.memberInvestment),
+                  '${p.memberCount}',
+                ],
+            ],
+            align: right,
+          ),
+
+          sectionTitle('৪. খাতভিত্তিক আয়'),
+          table(
+            ['খাত', 'ভাউচার', 'টাকা', '%'],
+            [for (final s in r.incomeSectors) [s.name, '${s.count}', amt(s.amount), '${s.percent.toStringAsFixed(1)}%']],
+            align: right,
+          ),
+
+          sectionTitle('৫. খাতভিত্তিক ব্যয়'),
+          table(
+            ['খাত', 'ভাউচার', 'টাকা', '%'],
+            [for (final s in r.expenseSectors) [s.name, '${s.count}', amt(s.amount), '${s.percent.toStringAsFixed(1)}%']],
+            align: right,
+          ),
+
+          sectionTitle('৬. সদস্যভিত্তিক'),
+          table(
+            ['শেয়ার নং', 'নাম', 'শেয়ার', 'নীতিমালা', 'বিনিয়োগ', 'মুনাফা', 'মূলধন ফেরত', 'নিট মূলধন'],
+            [
+              for (final m in r.members)
+                [
+                  m.no,
+                  m.name,
+                  '${m.shares}',
+                  m.policyLabel,
+                  amt(m.investment),
+                  amt(m.profitReceived),
+                  amt(m.capitalReturn),
+                  amt(m.netCapital),
+                ],
+            ],
+            align: right,
+          ),
+
+          pw.SizedBox(height: 22),
+          _signatureRow(['অর্থ সম্পাদক', 'সাধারণ সম্পাদক', 'সভাপতি']),
+        ],
+      ),
+    );
+
+    return doc.save();
+  }
+
+  /// Detailed ledger (landscape): in/out columns, running balance, totals, signatures.
+  /// Member statement mode when [member] is given and the ledger is in member mode.
+  static Future<Uint8List> generateDetailedLedgerPdf(
+    LedgerReport ledger, {
+    required String title,
+    required String periodLabel,
+    String? filterLabel,
+    Map<String, String> projectNames = const {},
+    MemberModel? member,
+  }) async {
+    await _initResources();
+    final doc = pw.Document(theme: _getTheme());
+    final nowStr = DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now());
+    final isMember = ledger.memberMode;
+    final showBal = ledger.showBalance;
+
+    final headers = <String>[
+      'ভাউচার',
+      'তারিখ',
+      'বিবরণ',
+      'খাত',
+      'প্রকল্প / সদস্য',
+      'মাধ্যম',
+      (isMember ? 'বিনিয়োগ' : 'আয়'),
+      (isMember ? 'প্রাপ্তি' : 'ব্যয়'),
+      if (showBal) (isMember ? 'মূলধন স্থিতি' : 'চলমান স্থিতি'),
+    ];
+
+    final data = ledger.rows.map((r) {
+      final t = r.trx;
+      final party = t.member.isNotEmpty
+          ? t.member
+          : (t.project.isNotEmpty ? (projectNames[t.project] ?? t.project) : '—');
+      final desc = t.note.isNotEmpty ? t.note : t.title;
+      String amt(double v) => v == 0 ? '—' : _formatAmount(v);
+      return <String>[
+        t.vno,
+        DateFormatter.ddMMyyyy(t.date),
+        desc,
+        t.sectorName.isEmpty ? '—' : t.sectorName,
+        party,
+        _getModeTitle(t.mode),
+        amt(r.inAmount),
+        amt(r.outAmount),
+        if (showBal) (r.balance == null ? '—' : _formatAmount(r.balance!)),
+      ];
+    }).toList();
+
+    final widths = <double>[1.1, 1.0, 2.4, 1.6, 1.6, 1.4, 1.1, 1.1, 1.3];
+    final columnWidths = <int, pw.TableColumnWidth>{
+      for (var i = 0; i < headers.length; i++) i: pw.FlexColumnWidth(widths[i]),
+    };
+    final rightCols = <int, pw.Alignment>{
+      6: pw.Alignment.centerRight,
+      7: pw.Alignment.centerRight,
+      8: pw.Alignment.centerRight,
+    };
+    final footer = <String>[
+      'মোট',
+      '',
+      '',
+      '',
+      '',
+      '',
+      _formatAmount(ledger.totalIn),
+      _formatAmount(ledger.totalOut),
+      if (showBal) '',
+    ];
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        header: (context) => pw.Column(
+          children: [
+            _headerBlock(title: title, metaLabel: 'তারিখ :', metaValue: nowStr),
+            pw.SizedBox(height: 4),
+            _text(
+              'সময়কাল: $periodLabel${filterLabel == null ? '' : '  •  ফিল্টার: $filterLabel'}',
+              style: const pw.TextStyle(fontSize: 8, color: _muted),
+            ),
+            pw.SizedBox(height: 6),
+          ],
+        ),
+        footer: (context) => pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            _text('সম্প্রীতি ইনভেস্টমেন্ট ফোরাম • সর্বস্বত্ব সংরক্ষিত',
+                style: const pw.TextStyle(fontSize: 7, color: _muted)),
+            _text('পৃষ্ঠা ${context.pageNumber} / ${context.pagesCount}',
+                style: const pw.TextStyle(fontSize: 7, color: _muted)),
+          ],
+        ),
+        build: (context) => [
+          if (isMember && member != null)
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(8),
+              margin: const pw.EdgeInsets.only(bottom: 10),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: _rule, width: 0.5),
+                borderRadius: pw.BorderRadius.circular(4),
+              ),
+              child: _text(
+                'সদস্য: ${member.displayName}  •  শেয়ার নং: ${member.no}  •  শেয়ার: ${member.shares} টি'
+                '${member.founder || member.labor ? '  •  ${[if (member.founder) 'প্রতিষ্ঠাতা', if (member.labor) 'শ্রমদাতা'].join(', ')}' : ''}',
+                style: const pw.TextStyle(fontSize: 9, color: _ink),
+              ),
+            ),
+          pw.Table(
+            children: [
+              pw.TableRow(children: [
+                _statCell('শুরুর স্থিতি', ledger.opening),
+                _statCell(isMember ? 'মোট বিনিয়োগ' : 'মোট আয়', ledger.totalIn, color: _success),
+                _statCell(isMember ? 'মোট প্রাপ্তি' : 'মোট ব্যয়', ledger.totalOut, color: _error),
+                _statCell('শেষ স্থিতি', ledger.closing, color: _maroon),
+              ]),
+            ],
+          ),
+          pw.SizedBox(height: 6),
+          _text(
+            'মুনাফা বণ্টন: ${_formatAmount(ledger.totalPayout)}'
+            '${isMember ? '  •  মূলধন ফেরত: ${_formatAmount(ledger.totalCapitalReturn)}' : ''}'
+            '  •  ব্যাংক স্থানান্তর: ${ledger.transferCount} টি',
+            style: const pw.TextStyle(fontSize: 8, color: _muted),
+          ),
+          pw.SizedBox(height: 8),
+          _buildTable(
+            headers: headers,
+            data: data,
+            columnWidths: columnWidths,
+            columnAlignments: rightCols,
+            cellStyle: const pw.TextStyle(fontSize: 7, color: _ink),
+            footerRow: footer,
+          ),
+          pw.SizedBox(height: 16),
+          _signatureRow(['প্রস্তুতকারী', 'সাধারণ সম্পাদক', 'সভাপতি']),
+        ],
+      ),
+    );
+
+    return doc.save();
+  }
+
   static Future<Uint8List> generateLedgerPdf(
     List<TransactionModel> transactions, {
     String? title,
@@ -1508,13 +2132,13 @@ class PdfDocumentService {
           _buildTable(
             headers: ['ভাউচার', 'তারিখ', 'লেনদেনের ধরন', 'সদস্য/প্রতিষ্ঠান', 'মাধ্যম', 'পরিমাণ'],
             data: transactions.map((t) {
-              final target = t.member.isNotEmpty ? t.member : t.inst.isNotEmpty ? t.inst : '—';
+              final target = t.member.isNotEmpty ? t.member : t.project.isNotEmpty ? t.project : '—';
               final isPos = t.sign > 0;
               final prefix = isPos ? '+৳ ' : t.sign < 0 ? '-৳ ' : '৳ ';
               return [
                 t.vno,
                 DateFormatter.ddMMyyyy(t.date),
-                t.typeTitle,
+                t.title,
                 target,
                 _getModeTitle(t.mode),
                 '$prefix${_formatAmount(t.amount)}',

@@ -26,8 +26,13 @@ import 'package:sampriti/features/members/data/repos/members_repo.dart';
 import 'package:sampriti/features/members/presentation/pages/member_details_page.dart';
 import 'package:sampriti/features/members/presentation/pages/members_page.dart';
 import 'package:sampriti/features/reports/presentation/pages/reports_page.dart';
+import 'package:sampriti/features/setup/presentation/pages/setup_hub_page.dart';
 import 'package:sampriti/features/transactions/presentation/pages/add_transaction_page.dart';
-import 'package:sampriti/features/transactions/presentation/pages/bulk_payout_page.dart';
+import 'package:sampriti/features/meetings/presentation/pages/meetings_page.dart';
+import 'package:sampriti/features/announcements/presentation/pages/announcements_page.dart';
+import 'package:sampriti/features/announcements/presentation/widgets/announcement_entry_card.dart';
+import 'package:sampriti/features/office_bearers/presentation/pages/office_bearers_page.dart';
+import 'package:sampriti/features/transactions/presentation/pages/project_profit_distribution_page.dart';
 import 'package:sampriti/features/transactions/presentation/pages/transactions_page.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -133,7 +138,11 @@ class _DashboardPageState extends State<DashboardPage> {
                           ),
                           const SizedBox(height: 20),
 
-                          // 2. Section Header: Quick Actions
+                          // 2. Announcement button (visible to admin and shareholders)
+                          const AnnouncementEntryCard(),
+                          const SizedBox(height: 20),
+
+                          // 3. Section Header: Quick Actions
                           const SectionHeader(title: 'কুইক অ্যাকশন (Quick Actions)'),
                           const SizedBox(height: 10),
 
@@ -202,7 +211,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         QuickActionItem(
           icon: HugeIcons.strokeRoundedInvoice02,
-          label: 'নতুন ভাউচার',
+          label: 'আয় ব্যয়',
           color: AppColors.accent,
           onTap: () {
             Navigator.push(context, AddTransactionPage.route()).then((_) {
@@ -215,9 +224,15 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         QuickActionItem(
           icon: HugeIcons.strokeRoundedTransaction,
-          label: 'লেনদেন তালিকা',
+          label: 'লেনদেন',
           color: AppColors.success,
           onTap: () => Navigator.push(context, TransactionsPage.route()),
+        ),
+        QuickActionItem(
+          icon: HugeIcons.strokeRoundedSettings02,
+          label: 'সেটআপ',
+          color: AppColors.primary,
+          onTap: () => Navigator.push(context, SetupHubPage.route()),
         ),
         QuickActionItem(
           icon: HugeIcons.strokeRoundedCoins01,
@@ -226,7 +241,7 @@ class _DashboardPageState extends State<DashboardPage> {
           onTap: () {
             Navigator.push(
               context,
-              BulkPayoutPage.route(availableProfit: summary.distributableProfit),
+              ProjectProfitDistributionPage.route(),
             ).then((_) {
               if (context.mounted) {
                 context.read<DashboardBloc>().add(DashboardFetchRequested());
@@ -247,16 +262,22 @@ class _DashboardPageState extends State<DashboardPage> {
           onTap: () => Navigator.push(context, ReportsPage.route()),
         ),
         QuickActionItem(
-          icon: HugeIcons.strokeRoundedShare01,
-          label: 'অ্যাপ শেয়ার',
+          icon: HugeIcons.strokeRoundedFileEdit,
+          label: 'মিটিং রেজুলেশন',
           color: AppColors.primary,
-          onTap: () => AppReviewService.shareApp(),
+          onTap: () => Navigator.push(context, MeetingsPage.route()),
         ),
         QuickActionItem(
-          icon: HugeIcons.strokeRoundedStar,
-          label: 'রেটিং দিন',
-          color: AppColors.accentYellow,
-          onTap: () => AppReviewService.showManualRatingDialog(context),
+          icon: HugeIcons.strokeRoundedMegaphone01,
+          label: 'Announcement',
+          color: AppColors.accent,
+          onTap: () => Navigator.push(context, AnnouncementsPage.route()),
+        ),
+        QuickActionItem(
+          icon: HugeIcons.strokeRoundedUserMultiple,
+          label: 'Managing committee',
+          color: AppColors.accent,
+          onTap: () => Navigator.push(context, OfficeBearersPage.route()),
         ),
       ];
     }
@@ -302,18 +323,6 @@ class _DashboardPageState extends State<DashboardPage> {
           }
         },
       ),
-      QuickActionItem(
-        icon: HugeIcons.strokeRoundedShare01,
-        label: 'অ্যাপ শেয়ার',
-        color: AppColors.primary,
-        onTap: () => AppReviewService.shareApp(),
-      ),
-      QuickActionItem(
-        icon: HugeIcons.strokeRoundedStar,
-        label: 'রেটিং দিন',
-        color: AppColors.accentYellow,
-        onTap: () => AppReviewService.showManualRatingDialog(context),
-      ),
     ];
   }
 
@@ -335,8 +344,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(width: 8),
                 DashboardStatTile(
                   icon: isAdmin ? HugeIcons.strokeRoundedMoney03 : HugeIcons.strokeRoundedCoins02,
-                  value: isAdmin ? _formatAmount(summary.cashBalance) : _formatAmount(summary.myProfitDue),
-                  label: isAdmin ? 'ক্যাশ ইন হ্যান্ড' : 'প্রাপ্য মোট মুনাফা',
+                  value: isAdmin ? _formatAmount(summary.cashBalance) : _formatAmount(summary.myTotalInvestment),
+                  label: isAdmin ? 'ক্যাশ ইন হ্যান্ড' : 'আমার মোট বিনিয়োগ',
                   color: AppColors.success,
                 ),
               ],
@@ -349,15 +358,15 @@ class _DashboardPageState extends State<DashboardPage> {
               children: [
                 DashboardStatTile(
                   icon: isAdmin ? HugeIcons.strokeRoundedBuilding03 : HugeIcons.strokeRoundedCheckmarkCircle02,
-                  value: isAdmin ? _formatAmount(summary.institutionInvestment) : _formatAmount(summary.myProfitPaid),
-                  label: isAdmin ? 'প্রতিষ্ঠানে বিনিয়োগ' : 'প্রাপ্ত মুনাফা',
+                  value: isAdmin ? _formatAmount(summary.projectExpense) : _formatAmount(summary.myProfitPaid),
+                  label: isAdmin ? 'প্রকল্পে ব্যয়' : 'প্রাপ্ত মুনাফা',
                   color: AppColors.primary,
                 ),
                 const SizedBox(width: 8),
                 DashboardStatTile(
                   icon: HugeIcons.strokeRoundedTime02,
-                  value: isAdmin ? _formatAmount(summary.pendingPayout) : _formatAmount(summary.myProfitRemaining),
-                  label: isAdmin ? 'বকেয়া লভ্যাংশ' : 'বকেয়া মুনাফা',
+                  value: isAdmin ? _formatAmount(summary.pendingPayout) : (summary.memberNo ?? '—'),
+                  label: isAdmin ? 'বকেয়া লভ্যাংশ' : 'শেয়ার নং',
                   color: AppColors.warning,
                 ),
               ],

@@ -179,11 +179,9 @@ class _MembersPageState extends State<MembersPage> {
             // Search Bar & Summary
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: CustomTextField(
-                label: 'সদস্য খুঁজুন',
+              child: CustomTextField.search(
                 controller: _searchController,
                 hintText: 'নাম, শেয়ার নং (S101), বা মোবাইল নম্বর...',
-                suffixIcon: HugeIcons.strokeRoundedSearch01,
                 onChanged: (val) {
                   context.read<MemberBloc>().add(MemberSearchRequested(val));
                 },

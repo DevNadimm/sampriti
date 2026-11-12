@@ -9,12 +9,18 @@ class TransactionLoading extends TransactionState {}
 class TransactionLoaded extends TransactionState {
   final List<TransactionModel> transactions;
   final String? activeMemberFilter;
-  final String? activeTypeFilter;
+  final String? activeDirFilter;
+  final String? activeSectorFilter;
+  final String? activeKindFilter;
+  final String? activeProjectFilter;
 
   TransactionLoaded({
     required this.transactions,
     this.activeMemberFilter,
-    this.activeTypeFilter,
+    this.activeDirFilter,
+    this.activeSectorFilter,
+    this.activeKindFilter,
+    this.activeProjectFilter,
   });
 }
 

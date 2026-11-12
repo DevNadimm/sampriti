@@ -7,8 +7,8 @@ class AppConfig {
   static const String appSlogan = "We build our nation by building ourselves";
   static const String establishedYear = "২০১১";
   static const String orgAddress = "নোয়াপাড়া আইডিয়াল স্কুল, রাউজান, চট্টগ্রাম-৪৩৪৬";
-  static const String appVersion = "1.0.2";
-  static const String appBuildNumber = "3";
+  static const String appVersion = "1.0.3";
+  static const String appBuildNumber = "4";
   static const String appSubtitle = "সমবায় ও বিনিয়োগ ব্যবস্থাপনা";
 
   /// URLs

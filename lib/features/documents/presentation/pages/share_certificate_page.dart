@@ -46,14 +46,20 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
     }
   }
 
+  String _numberToWord(int n) {
+    const words = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+    if (n > 0 && n < words.length) return words[n];
+    return '$n';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         leading: const CustomBackButton(),
         title: Text(
-          'শেয়ার সনদপত্র',
-          style: GoogleFonts.notoSansBengali(
+          'Share Certificate',
+          style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
@@ -67,7 +73,7 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
                 size: 22,
                 color: AppColors.primary,
               ),
-              tooltip: 'প্রিন্ট / PDF প্রিভিউ',
+              tooltip: 'Print / PDF Preview',
               onPressed: _openPdfPreview,
             ),
         ],
@@ -90,8 +96,8 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
                           const Icon(Icons.lock_outline, size: 48, color: AppColors.error),
                           const SizedBox(height: 16),
                           Text(
-                            'সার্টিফিকেট দেখার অনুমতি নেই',
-                            style: GoogleFonts.notoSansBengali(
+                            'Certificate Access Restricted',
+                            style: GoogleFonts.poppins(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
@@ -99,9 +105,9 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'শেয়ারহোল্ডার শুধুমাত্র তার নিজস্ব শেয়ার সনদপত্র দেখতে পারবেন।',
+                            'Only authenticated shareholders may view their own certificate.',
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.notoSansBengali(
+                            style: GoogleFonts.poppins(
                               fontSize: 13,
                               color: AppColors.textSecondary,
                             ),
@@ -114,7 +120,7 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        // Royal Certificate Card
+                        // Royal Certificate Card (All English)
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(18),
@@ -153,7 +159,7 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
                                 Text(
                                   'SAMPRITI INVESTMENT FORUM',
                                   style: GoogleFonts.poppins(
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.accent,
                                     letterSpacing: 2,
@@ -161,36 +167,37 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
                                 ),
                                 const SizedBox(height: 16),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
                                   decoration: BoxDecoration(
                                     color: AppColors.primary,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
-                                    'শেয়ার সার্টিফিকেট (SHARE CERTIFICATE)',
-                                    style: GoogleFonts.notoSansBengali(
-                                      fontSize: 12,
+                                    'SHARE CERTIFICATE',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12.5,
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.white,
+                                      letterSpacing: 1.2,
                                     ),
                                   ),
                                 ),
                                 const SizedBox(height: 20),
                                 Text(
-                                  'সনদ নম্বর: CERT-${_member!.no}',
+                                  'Certificate No: CERT-${_member!.no}',
                                   style: GoogleFonts.poppins(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
-                                const SizedBox(height: 14),
+                                const SizedBox(height: 16),
                                 // Member Passport Photo
                                 MemberAvatar(
                                   photo: _member!.photo,
                                   fallbackText: _member!.no,
-                                  width: 85,
-                                  height: 105,
+                                  width: 88,
+                                  height: 110,
                                   isCircle: false,
                                   borderRadius: 6,
                                   border: Border.all(
@@ -198,40 +205,32 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
                                     width: 2,
                                   ),
                                 ),
-                                const SizedBox(height: 14),
+                                const SizedBox(height: 16),
                                 Text(
-                                  'এই মর্মে প্রত্যয়ন করা যাইতেছে যে,',
-                                  style: GoogleFonts.notoSansBengali(
-                                    fontSize: 13,
+                                  'This is to certify that',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13.5,
+                                    fontStyle: FontStyle.italic,
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
+                                // Single English Name (Large & Prominent)
                                 Text(
-                                  _member!.displayName,
-                                  style: GoogleFonts.notoSansBengali(
+                                  _member!.nameEn.isNotEmpty ? _member!.nameEn : _member!.displayName,
+                                  style: GoogleFonts.poppins(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
                                     color: AppColors.primary,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                if (_member!.nameEn.isNotEmpty) ...[
-                                  Text(
-                                    _member!.nameEn,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 14),
                                 Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 8),
                                   child: Text(
-                                    'সম্প্রীতি ইনভেস্টমেন্ট ফোরাম এর একজন সম্মানিত অংশীদার হিসেবে মোট ${_member!.shares} (এক) টি সাধারণ শেয়ারের স্বত্বাধিকারী। তাঁহার শেয়ার নম্বর ${_member!.no}। তিনি সংগঠনের সকল নিয়ম ও মুনাফা বণ্টনের আওতাভুক্ত।',
-                                    style: GoogleFonts.notoSansBengali(
+                                    'is a bonafide registered shareholder of Sampriti Investment Forum, holding ${_member!.shares} (${_numberToWord(_member!.shares)}) ordinary share(s) under Share No. ${_member!.no}. The shareholder is entitled to all rights, privileges, and dividend distributions in accordance with the constitution and regulations of the forum.',
+                                    style: GoogleFonts.poppins(
                                       fontSize: 13,
                                       height: 1.6,
                                       color: AppColors.textPrimary,
@@ -241,13 +240,13 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
                                 ),
                                 const SizedBox(height: 36),
 
-                                // Signatures (Matching HTML spec: শেয়ার হোল্ডার, সাধারণ সম্পাদক, সভাপতি)
+                                // Signatures (Shareholder, General Secretary, President)
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _buildSigBlock('শেয়ার হোল্ডার'),
-                                    _buildSigBlock('সাধারণ সম্পাদক'),
-                                    _buildSigBlock('সভাপতি'),
+                                    _buildSigBlock('Shareholder'),
+                                    _buildSigBlock('General Secretary'),
+                                    _buildSigBlock('President'),
                                   ],
                                 ),
                               ],
@@ -270,8 +269,8 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'প্রিন্ট ও PDF ডাউনলোড',
-                                style: GoogleFonts.notoSansBengali(
+                                'Print & Download PDF',
+                                style: GoogleFonts.poppins(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.white,
@@ -293,7 +292,7 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
     Navigator.push(
       context,
       PdfPreviewPage.route(
-        title: 'শেয়ার সনদপত্র (${_member!.no})',
+        title: 'Share Certificate (${_member!.no})',
         pdfFileName: 'sampriti-share-certificate-${_member!.no}.pdf',
         buildPdf: () => PdfDocumentService.generateShareCertificate(_member!),
       ),
@@ -304,16 +303,16 @@ class _ShareCertificatePageState extends State<ShareCertificatePage> {
     return Column(
       children: [
         Container(
-          width: 90,
+          width: 95,
           height: 1,
           color: AppColors.primary.withValues(alpha: 0.5),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           title,
-          style: GoogleFonts.notoSansBengali(
+          style: GoogleFonts.poppins(
             fontSize: 11,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
           ),
         ),

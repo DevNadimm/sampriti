@@ -262,8 +262,8 @@ class _UnifiedFinancialCardState extends State<UnifiedFinancialCard> {
             const SizedBox(width: 8),
             Expanded(
               child: _SubStatChip(
-                label: 'লোন বকেয়া',
-                amount: _formatAmount(s.loanOutstanding),
+                label: 'প্রকল্পে ব্যয়',
+                amount: _formatAmount(s.projectExpense),
               ),
             ),
           ],
@@ -326,7 +326,7 @@ class _UnifiedFinancialCardState extends State<UnifiedFinancialCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'আমার বকেয়া লভ্যাংশ',
+          'আমার প্রাপ্ত লভ্যাংশ',
           style: GoogleFonts.notoSansBengali(
             color: AppColors.white.withValues(alpha: 0.9),
             fontSize: 13,
@@ -336,7 +336,7 @@ class _UnifiedFinancialCardState extends State<UnifiedFinancialCard> {
         ),
         const SizedBox(height: 4),
         Text(
-          _formatAmount(s.myProfitRemaining),
+          _formatAmount(s.myProfitPaid),
           style: GoogleFonts.poppins(
             color: AppColors.white,
             fontSize: 32,
@@ -348,15 +348,15 @@ class _UnifiedFinancialCardState extends State<UnifiedFinancialCard> {
           children: [
             Expanded(
               child: _SubStatChip(
-                label: 'মোট প্রাপ্য',
-                amount: _formatAmount(s.myProfitDue),
+                label: 'আমার বিনিয়োগ',
+                amount: _formatAmount(s.myTotalInvestment),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: _SubStatChip(
-                label: 'প্রাপ্ত লভ্যাংশ',
-                amount: _formatAmount(s.myProfitPaid),
+                label: 'শেয়ার সংখ্যা',
+                amount: '${s.myShares} টি',
               ),
             ),
           ],

@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:intl/intl.dart';
 import 'package:sampriti/core/components/back_button.dart';
 import 'package:sampriti/core/components/custom_text_field.dart';
-import 'package:sampriti/core/components/spring_button.dart';
 import 'package:sampriti/core/config/colors.dart';
+import 'package:sampriti/core/shared/shimmer/shimmer_list.dart';
+import 'package:sampriti/core/shared/widgets/app_confirmation_dialog.dart';
 import 'package:sampriti/core/shared/widgets/app_notifier.dart';
+import 'package:sampriti/core/shared/widgets/empty_state_widget.dart';
+import 'package:sampriti/core/shared/widgets/error_state_widget.dart';
 import 'package:sampriti/core/shared/widgets/gradient_background.dart';
-import 'package:sampriti/features/transactions/data/models/transaction_model.dart';
-import 'package:sampriti/features/transactions/data/repos/transactions_repo.dart';
+import 'package:sampriti/features/auth/presentation/bloc/auth/auth_bloc.dart';
+import 'package:sampriti/features/finance/data/models/bank_account_model.dart';
+import 'package:sampriti/features/finance/presentation/bloc/bank_bloc.dart';
+import 'package:sampriti/features/finance/presentation/widgets/cash_card.dart';
+import 'package:sampriti/features/finance/presentation/pages/add_edit_bank_account_page.dart';
+import 'package:sampriti/features/finance/presentation/pages/bank_transfer_page.dart';
+import 'package:sampriti/features/finance/presentation/widgets/bank_card.dart';
 
 class BankAccountsPage extends StatefulWidget {
   static Route route() => MaterialPageRoute(builder: (_) => const BankAccountsPage());
@@ -21,342 +30,399 @@ class BankAccountsPage extends StatefulWidget {
 }
 
 class _BankAccountsPageState extends State<BankAccountsPage> {
-  final List<Map<String, dynamic>> _accounts = [
-    {
-      'id': 'b1',
-      'bankName': 'ইসলামী ব্যাংক বাংলাদেশ লিঃ',
-      'branch': 'নোয়াপাড়া শাখা',
-      'acctNo': '২০৫০১০১০০২২৫৫৮',
-      'balance': 385000.0,
-    },
-    {
-      'id': 'b2',
-      'bankName': 'সোনালী ব্যাংক পিএলসি',
-      'branch': 'বাগোয়ান শাখা',
-      'acctNo': '০১০৩২০১০০৫৫৮৬',
-      'balance': 150000.0,
-    },
-  ];
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<BankBloc>().add(BankFetchRequested());
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   String _formatAmount(double amount) {
     final formatter = NumberFormat('#,##,###');
     return '৳ ${formatter.format(amount.round())}';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final totalBank = _accounts.fold<double>(0, (s, a) => s + (a['balance'] as double));
+  void _onAddAccount() {
+    Navigator.push(context, AddEditBankAccountPage.route());
+  }
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: const CustomBackButton(),
+  bool _isAdmin() {
+    final s = context.read<AuthBloc>().state;
+    return s is AuthAuthenticated && s.session.isAdmin;
+  }
+
+  Future<void> _onEditCashOpening(double current) async {
+    final controller = TextEditingController(text: current.round().toString());
+    final bloc = context.read<BankBloc>();
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
         title: Text(
-          'ব্যাংক হিসাব ও নগদ লেনদেন',
-          style: GoogleFonts.notoSansBengali(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
+          'নগদের প্রারম্ভিক স্থিতি',
+          style: GoogleFonts.notoSansBengali(fontWeight: FontWeight.w700),
+        ),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(hintText: 'যেমন: 50000'),
         ),
         actions: [
-          IconButton(
-            icon: const HugeIcon(icon: HugeIcons.strokeRoundedAddCircleHalfDot, size: 22, color: AppColors.primary),
-            onPressed: _showAddAccountDialog,
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('বাতিল')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, double.tryParse(controller.text.trim())),
+            child: const Text('সংরক্ষণ'),
           ),
         ],
       ),
-      body: GradientBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+    );
+    controller.dispose();
+    if (result == null) return;
+    bloc.add(BankCashOpeningSaveRequested(result));
+  }
+
+  void _onEditAccount(BankAccountModel account) {
+    Navigator.push(context, AddEditBankAccountPage.route(account: account));
+  }
+
+  void _onDeleteAccount(BankAccountModel account) {
+    AppConfirmationDialog.show(
+      context,
+      title: 'ব্যাংক হিসাব মুছে ফেলুন',
+      message: 'আপনি কি নিশ্চিত যে "${account.displayName}" হিসাবটি মুছে ফেলতে চান?',
+      confirmText: 'মুছে ফেলুন',
+      isDestructive: true,
+      onConfirm: () {
+        context.read<BankBloc>().add(BankDeleteRequested(account.id));
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<BankBloc, BankState>(
+      listener: (context, state) {
+        if (state is BankActionSuccess) {
+          AppNotifier.showSuccessSnackBar(context, state.message);
+        } else if (state is BankFailure) {
+          AppNotifier.showErrorSnackBar(context, state.message);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const CustomBackButton(),
+          title: Text(
+            'ব্যাংক হিসাবসমূহ',
+            style: GoogleFonts.notoSansBengali(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          actions: [
+            IconButton(
+              icon: const HugeIcon(
+                icon: HugeIcons.strokeRoundedAddCircleHalfDot,
+                size: 22,
+                color: AppColors.primary,
+              ),
+              tooltip: 'নতুন ব্যাংক যুক্ত করুন',
+              onPressed: _onAddAccount,
+            ),
+          ],
+        ),
+        body: GradientBackground(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Total Bank Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF640710), AppColors.primary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'ব্যাংক সমূহের মোট সঞ্চয় স্থিতি',
-                      style: GoogleFonts.notoSansBengali(
-                        fontSize: 13,
-                        color: AppColors.white.withValues(alpha: 0.8),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _formatAmount(totalBank),
-                      style: GoogleFonts.poppins(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.accentYellow,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
+              // Top Balance Overview Banner (RentBook Navy Gradient Card)
+              BlocBuilder<BankBloc, BankState>(
+                builder: (context, state) {
+                  double totalBank = 0.0;
+                  double cashBal = 0.0;
+                  if (state is BankLoaded) {
+                    totalBank = state.totalBankBalance;
+                    cashBal = state.cashBalance;
+                  }
 
-              // Action buttons: Deposit vs Withdraw
-              Row(
-                children: [
-                  Expanded(
-                    child: SpringButton(
-                      onPressed: () => _showTransferDialog(isDeposit: true),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const HugeIcon(icon: HugeIcons.strokeRoundedArrowDownLeft01, size: 18, color: AppColors.white),
-                          const SizedBox(width: 8),
-                          Text(
-                            'ব্যাংকে জমা',
-                            style: GoogleFonts.notoSansBengali(fontSize: 14, fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SpringButton(
-                      onPressed: () => _showTransferDialog(isDeposit: false),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const HugeIcon(icon: HugeIcons.strokeRoundedArrowUpRight01, size: 18, color: AppColors.white),
-                          const SizedBox(width: 8),
-                          Text(
-                            'ব্যাংক থেকে উত্তোলন',
-                            style: GoogleFonts.notoSansBengali(fontSize: 14, fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              Text(
-                'সংযুক্ত ব্যাংক অ্যাকাউন্টসমূহ',
-                style: GoogleFonts.notoSansBengali(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _accounts.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final acct = _accounts[index];
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: AppColors.accent.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Center(
-                            child: HugeIcon(
-                              icon: HugeIcons.strokeRoundedBank,
-                              size: 24,
-                              color: AppColors.accent,
-                            ),
-                          ),
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primaryDark, AppColors.primary],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.25),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                acct['bankName'],
-                                style: GoogleFonts.notoSansBengali(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'ব্যাংক সমূহের মোট সঞ্চয় স্থিতি',
+                                    style: GoogleFonts.notoSansBengali(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.white.withValues(alpha: 0.85),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _formatAmount(totalBank),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.accentYellow,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${acct['branch']} • হিসাব নং: ${acct['acctNo']}',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.white.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'ক্যাশ ইন হ্যান্ড',
+                                      style: GoogleFonts.notoSansBengali(
+                                        fontSize: 11,
+                                        color: AppColors.white.withValues(alpha: 0.8),
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatAmount(cashBal),
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.white,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        Text(
-                          _formatAmount(acct['balance']),
-                          style: GoogleFonts.poppins(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+                          const SizedBox(height: 16),
+
+                          // Quick Transfer Actions Row
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    BankTransferPage.route(isDeposit: true),
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 9),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white.withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: AppColors.white.withValues(alpha: 0.25),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const HugeIcon(
+                                          icon: HugeIcons.strokeRoundedArrowDownLeft01,
+                                          size: 16,
+                                          color: AppColors.white,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'ব্যাংকে জমা',
+                                          style: GoogleFonts.notoSansBengali(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    BankTransferPage.route(isDeposit: false),
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 9),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white.withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: AppColors.white.withValues(alpha: 0.25),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const HugeIcon(
+                                          icon: HugeIcons.strokeRoundedArrowUpRight01,
+                                          size: 16,
+                                          color: AppColors.white,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'ব্যাংক উত্তোলন',
+                                          style: GoogleFonts.notoSansBengali(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },
               ),
+
+              // Search Bar (RentBook Style)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+                child: CustomTextField.search(
+                  controller: _searchController,
+                  hintText: 'ব্যাংক হিসাব খুঁজুন (নাম, শাখা বা হিসাব নং)...',
+                  onChanged: (val) {
+                    context.read<BankBloc>().add(BankSearchRequested(val));
+                  },
+                ),
+              ),
+
+              // Cash in hand card (admin can edit the opening balance)
+              BlocBuilder<BankBloc, BankState>(
+                builder: (context, state) {
+                  if (state is! BankLoaded) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+                    child: CashCard(
+                      opening: state.cashOpening,
+                      inflow: state.cashIn,
+                      outflow: state.cashOut,
+                      balance: state.cashBalance,
+                      onEdit: _isAdmin() ? () => _onEditCashOpening(state.cashOpening) : null,
+                    ),
+                  );
+                },
+              ),
+
+              // Bank Accounts List
+              Expanded(
+                child: BlocBuilder<BankBloc, BankState>(
+                  builder: (context, state) {
+                    if (state is BankLoading || state is BankInitial) {
+                      return const ShimmerList(
+                        itemCount: 4,
+                        itemHeight: 140,
+                      );
+                    }
+
+                    if (state is BankFailure && state is! BankLoaded) {
+                      return ErrorStateWidget(
+                        message: state.message,
+                        onRetry: () => context.read<BankBloc>().add(BankFetchRequested()),
+                      );
+                    }
+
+                    if (state is BankLoaded) {
+                      final accounts = state.filteredAccounts;
+
+                      if (accounts.isEmpty) {
+                        return const Center(
+                          child: EmptyStateWidget(
+                            title: 'কোন ব্যাংক হিসাব নেই',
+                            message: 'এখনো কোনো ব্যাংক হিসাব যুক্ত করা হয়নি',
+                          ),
+                        );
+                      }
+
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          context.read<BankBloc>().add(BankFetchRequested());
+                        },
+                        color: AppColors.primary,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          itemCount: accounts.length,
+                          itemBuilder: (context, index) {
+                            final acc = accounts[index];
+                            return BankCard(
+                              account: acc,
+                              onEdit: () => _onEditAccount(acc),
+                              onDelete: () => _onDeleteAccount(acc),
+                            );
+                          },
+                        ),
+                      );
+                    }
+
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showTransferDialog({required bool isDeposit}) {
-    final amountCtrl = TextEditingController();
-    final noteCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          isDeposit ? 'নগদ থেকে ব্যাংকে জমা' : 'ব্যাংক থেকে নগদ উত্তোলন',
-          style: GoogleFonts.notoSansBengali(fontWeight: FontWeight.w700, fontSize: 16),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CustomTextField(
-              label: 'টাকার পরিমাণ',
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              hintText: 'যেমন: 20000',
-              isRequired: true,
-            ),
-            const SizedBox(height: 12),
-            CustomTextField(
-              label: 'বিবরণ / নোট',
-              controller: noteCtrl,
-              hintText: 'যেমন: ব্যাংক জমা স্লিপ নং ১২৩',
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('বাতিল')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () async {
-              final amount = double.tryParse(amountCtrl.text.trim()) ?? 0.0;
-              if (amount <= 0) {
-                AppNotifier.showErrorSnackBar(ctx, 'সঠিক পরিমাণ দিন');
-                return;
-              }
-
-              try {
-                final nextVNo = await TransactionsRepo.getNextVoucherNo();
-                final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-                final trx = TransactionModel(
-                  id: '',
-                  vno: nextVNo,
-                  date: date,
-                  type: isDeposit ? 'bank_dep' : 'bank_wd',
-                  amount: amount,
-                  mode: 'bank',
-                  note: noteCtrl.text.trim(),
-                );
-
-                await TransactionsRepo.addTransaction(trx);
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (mounted) {
-                  AppNotifier.showSuccessSnackBar(context, 'ভাউচার সফলভাবে তৈরি হয়েছে');
-                }
-              } catch (e) {
-                if (ctx.mounted) {
-                  AppNotifier.showErrorSnackBar(ctx, 'লেনদেন সংরক্ষণ ব্যর্থ: $e');
-                }
-              }
-            },
-            child: const Text('নিশ্চিত করুন', style: TextStyle(color: Colors.white)),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _onAddAccount,
+          backgroundColor: AppColors.primary,
+          elevation: 4,
+          icon: const HugeIcon(
+            icon: HugeIcons.strokeRoundedAddCircleHalfDot,
+            size: 20,
+            color: AppColors.white,
           ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddAccountDialog() {
-    final nameCtrl = TextEditingController();
-    final branchCtrl = TextEditingController();
-    final acctCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'নতুন ব্যাংক হিসাব যুক্ত করুন',
-          style: GoogleFonts.notoSansBengali(fontWeight: FontWeight.w700, fontSize: 16),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CustomTextField(label: 'ব্যাংকের নাম', controller: nameCtrl, isRequired: true),
-            const SizedBox(height: 10),
-            CustomTextField(label: 'শাখার নাম', controller: branchCtrl),
-            const SizedBox(height: 10),
-            CustomTextField(label: 'হিসাব নম্বর (A/C No)', controller: acctCtrl, isRequired: true),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('বাতিল')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () {
-              if (nameCtrl.text.trim().isEmpty || acctCtrl.text.trim().isEmpty) {
-                AppNotifier.showErrorSnackBar(ctx, 'নাম ও হিসাব নম্বর দিন');
-                return;
-              }
-              setState(() {
-                _accounts.add({
-                  'id': 'b_${DateTime.now().millisecondsSinceEpoch}',
-                  'bankName': nameCtrl.text.trim(),
-                  'branch': branchCtrl.text.trim(),
-                  'acctNo': acctCtrl.text.trim(),
-                  'balance': 0.0,
-                });
-              });
-              Navigator.pop(ctx);
-              AppNotifier.showSuccessSnackBar(context, 'ব্যাংক হিসাব যুক্ত করা হয়েছে');
-            },
-            child: const Text('যুক্ত করুন', style: TextStyle(color: Colors.white)),
+          label: Text(
+            'ব্যাংক যোগ করুন',
+            style: GoogleFonts.notoSansBengali(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.white,
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

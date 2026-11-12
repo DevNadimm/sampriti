@@ -29,6 +29,29 @@ class CustomTextField extends StatelessWidget {
     this.onLabelActionTap,
   });
 
+  /// Factory-style static helper to instantiate search-specific field design
+  static Widget search({
+    Key? key,
+    required TextEditingController controller,
+    String hintText = 'Search...',
+    ValueChanged<String>? onChanged,
+    FocusNode? focusNode,
+    TextInputAction textInputAction = TextInputAction.search,
+    bool readOnly = false,
+    VoidCallback? onTap,
+  }) {
+    return CustomSearchTextField(
+      key: key,
+      controller: controller,
+      hintText: hintText,
+      onChanged: onChanged,
+      focusNode: focusNode,
+      textInputAction: textInputAction,
+      readOnly: readOnly,
+      onTap: onTap,
+    );
+  }
+
   final String label;
   final String? hintText;
   final TextEditingController controller;

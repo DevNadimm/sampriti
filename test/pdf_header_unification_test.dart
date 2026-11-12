@@ -36,7 +36,8 @@ void main() {
     id: 'trx_1025',
     vno: 'V-1025',
     date: '10-11-2026',
-    type: 'share_in',
+    dir: 'in',
+    sectorKey: 'shareholder',
     member: 'S102',
     inst: '',
     acct: '0123456789',
@@ -51,7 +52,7 @@ void main() {
     bankBalance: 450000,
     cashBalance: 50000,
     totalFunds: 500000,
-    institutionIncome: 75000,
+    projectIncome: 75000,
     totalExpense: 25000,
     recentTransactions: [mockTransaction],
   );

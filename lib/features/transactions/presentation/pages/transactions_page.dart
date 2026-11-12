@@ -1,10 +1,16 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:intl/intl.dart';
 import 'package:sampriti/core/components/back_button.dart';
+import 'package:sampriti/core/components/period_filter_bar.dart';
 import 'package:sampriti/core/components/selectable_chip.dart';
+import 'package:sampriti/features/members/data/repos/members_repo.dart';
+import 'package:sampriti/features/reports/data/models/report_period.dart';
+import 'package:sampriti/features/reports/data/repos/report_repo.dart';
 import 'package:sampriti/core/config/colors.dart';
 import 'package:sampriti/core/services/pdf_document_service.dart';
 import 'package:sampriti/core/shared/pages/pdf_preview_page.dart';
@@ -14,6 +20,7 @@ import 'package:sampriti/core/shared/widgets/gradient_background.dart';
 import 'package:sampriti/core/shared/widgets/loader.dart';
 import 'package:sampriti/core/utils/helpers/option_picker_bottom_sheet_helper.dart';
 import 'package:sampriti/features/auth/presentation/bloc/auth/auth_bloc.dart';
+import 'package:sampriti/features/setup/data/repos/setup_repo.dart';
 import 'package:sampriti/features/transactions/data/models/transaction_model.dart';
 import 'package:sampriti/features/transactions/presentation/bloc/transaction_bloc.dart';
 import 'package:sampriti/features/transactions/presentation/pages/add_transaction_page.dart';
@@ -35,33 +42,108 @@ class TransactionsPage extends StatefulWidget {
 
 class _TransactionsPageState extends State<TransactionsPage> {
   String _selectedType = 'all';
+  ReportPeriod _period = ReportPeriod.preset(ReportPeriodPreset.thisMonth);
+  Map<String, String> _projectNames = {};
+
+  String _modeLabel(String mode) => mode == 'bank' ? 'ব্যাংক' : (mode == 'inst' ? 'প্রতিষ্ঠান' : 'নগদ');
+
+  Future<void> _loadProjectNames() async {
+    try {
+      final list = await SetupRepo.getProjects();
+      if (mounted) {
+        setState(() => _projectNames = {for (final p in list) p.id: p.name});
+      }
+    } catch (_) {}
+  }
 
   final List<Map<String, String>> _typeFilters = [
     {'key': 'all', 'label': 'সকল লেনদেন'},
-    {'key': 'share_in', 'label': 'শেয়ার বিনিয়োগ'},
+    {'key': 'in', 'label': 'আয়'},
+    {'key': 'out', 'label': 'ব্যয়'},
     {'key': 'payout', 'label': 'মুনাফা বণ্টন'},
-    {'key': 'inst_invest', 'label': 'প্রতিষ্ঠানে বিনিয়োগ'},
-    {'key': 'inst_income', 'label': 'প্রতিষ্ঠানের আয়'},
-    {'key': 'donation', 'label': 'ডোনেশন'},
-    {'key': 'expense', 'label': 'ব্যয়/খরচ'},
-    {'key': 'bank_dep', 'label': 'ব্যাংক জমা'},
-    {'key': 'bank_wd', 'label': 'ব্যাংক উত্তোলন'},
+    {'key': 'bank', 'label': 'ব্যাংক স্থানান্তর'},
   ];
 
   @override
   void initState() {
     super.initState();
     _selectedType = widget.type ?? 'all';
+    _loadProjectNames();
     _fetch();
   }
 
   void _fetch() {
+    final key = _selectedType;
     context.read<TransactionBloc>().add(
           TransactionFetchRequested(
             memberNo: widget.memberNo,
-            type: _selectedType == 'all' ? null : _selectedType,
+            dir: key == 'in' ? 'in' : key == 'out' ? 'out' : key == 'bank' ? 'xfer' : null,
+            kind: key == 'payout' ? 'profit_payout' : null,
+            from: _period.from,
+            to: _period.to,
           ),
         );
+  }
+
+  /// Detailed ledger for the current period and type filter.
+  /// Balance column only when no type filter is active (a filtered running balance is misleading).
+  Future<Uint8List> _buildLedgerPdf() async {
+    final key = _selectedType;
+    final memberNo = widget.memberNo;
+
+    bool Function(TransactionModel t)? filter;
+    if (key != 'all') {
+      filter = (t) {
+        switch (key) {
+          case 'in':
+            return t.dir == 'in';
+          case 'out':
+            return t.dir == 'out';
+          case 'payout':
+            return t.isProfitPayout;
+          case 'bank':
+            return t.dir == 'xfer';
+          default:
+            return true;
+        }
+      };
+    }
+
+    final ledger = await ReportRepo.buildLedger(
+      period: _period,
+      memberNo: memberNo,
+      showBalance: key == 'all',
+      filter: filter,
+    );
+    final member = memberNo != null ? await MembersRepo.getMemberByNo(memberNo) : null;
+    final filterLabel = key == 'all' ? null : _typeFilters.firstWhere((f) => f['key'] == key)['label'];
+
+    return PdfDocumentService.generateDetailedLedgerPdf(
+      ledger,
+      title: memberNo != null ? 'লেনদেন খতিয়ান ($memberNo)' : 'লেনদেন খতিয়ান ও লেজার বিবরণী',
+      periodLabel: _period.label,
+      filterLabel: filterLabel,
+      projectNames: _projectNames,
+      member: member,
+    );
+  }
+
+  Widget _summaryCell(String label, String value, Color color) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.notoSansBengali(fontSize: 11, color: AppColors.textSecondary),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w700, color: color),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatAmount(double amount) {
@@ -130,10 +212,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                     PdfPreviewPage.route(
                       title: widget.memberNo != null ? 'লেনদেন খতিয়ান (${widget.memberNo})' : 'লেনদেন খতিয়ান (লেজার)',
                       pdfFileName: 'sampriti-ledger${widget.memberNo != null ? '-${widget.memberNo}' : ''}.pdf',
-                      buildPdf: () => PdfDocumentService.generateLedgerPdf(
-                        state.transactions,
-                        title: widget.memberNo != null ? 'লেনদেন খতিয়ান (${widget.memberNo})' : 'লেনদেন খতিয়ান ও লেজার বিবরণী',
-                      ),
+                      buildPdf: _buildLedgerPdf,
                     ),
                   );
                 },
@@ -207,11 +286,37 @@ class _TransactionsPageState extends State<TransactionsPage> {
                       );
                     }
 
-                    final totalAmount = txs.fold<double>(0, (sum, t) => sum + t.amount);
+                    // Signed totals: transfers excluded, payouts shown separately.
+                    double inc = 0;
+                    double exp = 0;
+                    double pay = 0;
+                    for (final t in txs) {
+                      if (t.isBankTransfer) continue;
+                      if (t.dir == 'in') inc += t.amount;
+                      if (t.dir == 'out') {
+                        if (t.isProfitPayout) {
+                          pay += t.amount;
+                        } else {
+                          exp += t.amount;
+                        }
+                      }
+                    }
+                    final net = inc - exp - pay;
 
                     return Column(
                       children: [
-                        // Total Count & Amount Banner
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: PeriodFilterBar(
+                            value: _period,
+                            onChanged: (p) {
+                              setState(() => _period = p);
+                              _fetch();
+                            },
+                          ),
+                        ),
+
+                        // Summary Banner: income, expense + payout, net, count
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                           child: Container(
@@ -221,23 +326,24 @@ class _TransactionsPageState extends State<TransactionsPage> {
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: AppColors.border),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'মোট ভাউচার: ${txs.length} টি',
-                                  style: GoogleFonts.notoSansBengali(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
-                                  ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    _summaryCell('আয়', _formatAmount(inc), AppColors.success),
+                                    _summaryCell('ব্যয় + বণ্টন', _formatAmount(exp + pay), AppColors.error),
+                                    _summaryCell('নিট', _formatAmount(net),
+                                        net >= 0 ? AppColors.primary : AppColors.error),
+                                  ],
                                 ),
+                                const SizedBox(height: 4),
                                 Text(
-                                  'মোট অঙ্ক: ${_formatAmount(totalAmount)}',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
+                                  'মোট ভাউচার: ${txs.length} টি  •  বণ্টন: ${_formatAmount(pay)}',
+                                  style: GoogleFonts.notoSansBengali(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
                                   ),
                                 ),
                               ],
@@ -342,7 +448,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    trx.typeTitle,
+                    trx.title,
                     style: GoogleFonts.notoSansBengali(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -387,6 +493,17 @@ class _TransactionsPageState extends State<TransactionsPage> {
                         ),
                       ],
                     ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    [
+                      if (trx.sectorName.isNotEmpty) trx.sectorName,
+                      if (trx.project.isNotEmpty) _projectNames[trx.project] ?? trx.project,
+                      _modeLabel(trx.mode),
+                    ].join('  •  '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.notoSansBengali(fontSize: 11, color: AppColors.textSecondary),
                   ),
                 ],
               ),

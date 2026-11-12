@@ -43,7 +43,8 @@ void main() {
         id: 't1',
         vno: 'V-0001',
         date: '02/02/2026',
-        type: 'share_in',
+        dir: 'in',
+        sectorKey: 'shareholder',
         amount: 5000,
       );
 

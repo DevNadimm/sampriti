@@ -2,7 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sampriti/core/exceptions/api_exception.dart';
 import 'package:sampriti/core/services/app_preferences.dart';
 import 'package:sampriti/features/dashboard/data/models/dashboard_summary_model.dart';
+import 'package:sampriti/features/finance/data/models/bank_account_model.dart';
+import 'package:sampriti/features/finance/data/repos/bank_repo.dart';
 import 'package:sampriti/features/members/data/models/member_model.dart';
+import 'package:sampriti/features/setup/data/models/sector_model.dart';
 import 'package:sampriti/features/transactions/data/models/transaction_model.dart';
 
 class DashboardRepo {
@@ -11,6 +14,7 @@ class DashboardRepo {
   static Future<DashboardSummaryModel> getDashboardSummary() async {
     List<MemberModel> members = [];
     List<TransactionModel> txList = [];
+    List<BankAccountModel> bankAccounts = [];
     Map<String, dynamic> config = {'f': 20, 'l': 20, 'm': 60, 'cash0': 0};
 
     // 1. Fetch Members & Transactions from Firestore
@@ -25,6 +29,8 @@ class DashboardRepo {
       if (cfgDoc.exists) {
         config = cfgDoc.data() ?? config;
       }
+
+      bankAccounts = await BankRepo.getBankAccounts();
     } catch (e) {
       throw ApiException(
         message: 'ইন্টারনেট সংযোগ নেই বা সার্ভার থেকে ড্যাশবোর্ড ডাটা লোড করা সম্ভব হয়নি। অনুগ্রহ করে ইন্টারনেট সংযোগ চেক করে আবার চেষ্টা করুন।',
@@ -38,61 +44,64 @@ class DashboardRepo {
     double totalInvest = 0.0;
     double cashIn = 0.0;
     double cashOut = 0.0;
-    double bankIn = 0.0;
-    double bankOut = 0.0;
-    double instInvest = 0.0;
-    double loanGiven = 0.0;
-    double loanReturned = 0.0;
-    double subsidy = 0.0;
-    double instIncome = 0.0;
-    double donation = 0.0;
-    double expense = 0.0;
+    double projectIncome = 0.0;
+    double projectExpense = 0.0;
+    double donationExpense = 0.0;
+    double capitalReturn = 0.0;
+    // Profit pool: non-shareholder income minus non-shareholder expense, payouts excluded.
+    // Shareholder capital (in or out) is never profit.
+    double profitIn = 0.0;
+    double profitOut = 0.0;
+    double totalExpense = 0.0;
     double payout = 0.0;
+    final incomeBySector = <String, double>{};
+    final expenseBySector = <String, double>{};
 
     for (final t in txList) {
       final a = t.amount;
-      if (t.type == 'share_in' || t.type == 'plan_dep') {
-        totalInvest += a;
-        if (t.mode == 'inst') instInvest += a;
+
+      if (t.dir == 'in') {
+        incomeBySector[t.sectorName] = (incomeBySector[t.sectorName] ?? 0) + a;
+        if (t.sectorKey == SectorModel.keyShareholder) {
+          totalInvest += a;
+        } else {
+          profitIn += a;
+        }
+        if (t.sectorKey == SectorModel.keyProkolpo) projectIncome += a;
+      } else if (t.dir == 'out') {
+        if (t.isProfitPayout) {
+          payout += a;
+        } else {
+          if (t.sectorKey != SectorModel.keyShareholder) profitOut += a;
+          totalExpense += a;
+          expenseBySector[t.sectorName] = (expenseBySector[t.sectorName] ?? 0) + a;
+          if (t.sectorKey == SectorModel.keyProkolpo) projectExpense += a;
+          if (t.sectorKey == SectorModel.keyDonation) donationExpense += a;
+          if (t.sectorKey == SectorModel.keyShareholder) capitalReturn += a;
+        }
       }
-      if (t.type == 'inst_invest') instInvest += a;
-      if (t.type == 'inst_loan') loanGiven += a;
-      if (t.type == 'loan_return') loanReturned += a;
-      if (t.type == 'inst_subsidy') subsidy += a;
-      if (t.type == 'inst_income') instIncome += a;
-      if (t.type == 'donation') donation += a;
-      if (t.type == 'expense') expense += a;
-      if (t.type == 'payout') payout += a;
 
       // Cash flow
-      if (t.type == 'bank_dep') {
+      if (t.kind == 'bank_dep') {
         cashOut += a;
-        bankIn += a;
-      } else if (t.type == 'bank_wd') {
-        bankOut += a;
+      } else if (t.kind == 'bank_wd') {
         cashIn += a;
-      } else {
-        if (t.mode == 'cash') {
-          if (t.isInflow) cashIn += a;
-          if (t.isOutflow) cashOut += a;
-        } else if (t.mode == 'bank') {
-          if (t.isInflow) bankIn += a;
-          if (t.isOutflow) bankOut += a;
-        }
+      } else if (t.mode == 'cash') {
+        if (t.isInflow) cashIn += a;
+        if (t.isOutflow) cashOut += a;
       }
     }
 
     final double cash0 = (config['cash0'] as num?)?.toDouble() ?? 0.0;
     final double cashBalance = cash0 + cashIn - cashOut;
-    final double bankBalance = bankIn - bankOut;
+    // Same source as the bank accounts page and the financial report: initial balance + flows.
+    final double bankBalance = bankAccounts.fold(0.0, (s, b) => s + b.currentBalance);
     final double totalFunds = cashBalance + bankBalance;
-    final double loanOutstanding = loanGiven - loanReturned;
-    final double distributable = instIncome > expense ? (instIncome - expense) : instIncome;
+    final double distributable = (profitIn - profitOut).clamp(0, double.infinity).toDouble();
 
     // Shareholder specific calculation
     MemberModel? me;
     double myInvest = 0.0;
-    double myDue = 0.0;
     double myPaid = 0.0;
 
     if (currentRole == 'shareholder' && currentMemberNo.isNotEmpty) {
@@ -101,29 +110,14 @@ class DashboardRepo {
       } catch (_) {}
 
       if (me != null) {
-        // My Investment
         for (final t in txList.where((x) => x.member.toUpperCase() == me!.no.toUpperCase())) {
-          if (t.type == 'share_in' || t.type == 'plan_dep') {
+          if (t.dir == 'in' && t.sectorKey == SectorModel.keyShareholder) {
             myInvest += t.amount;
           }
-          if (t.type == 'payout') {
+          if (t.isProfitPayout) {
             myPaid += t.amount;
           }
         }
-
-        // Profit distribution entitlement
-        final F = members.where((m) => m.founder).length;
-        final L = members.where((m) => m.labor).length;
-        final N = members.length;
-        final fPct = ((config['founderPct'] ?? config['f'] ?? 20) as num).toDouble() / 100;
-        final lPct = ((config['laborPct'] ?? config['l'] ?? 20) as num).toDouble() / 100;
-        final mPct = ((config['mainFundPct'] ?? config['m'] ?? 60) as num).toDouble() / 100;
-
-        final fShare = (me.founder && F > 0) ? (distributable * fPct) / F : 0.0;
-        final lShare = (me.labor && L > 0) ? (distributable * lPct) / L : 0.0;
-        final mShare = (N > 0) ? (distributable * mPct) / N : 0.0;
-
-        myDue = fShare + lShare + mShare;
       }
     }
 
@@ -133,15 +127,16 @@ class DashboardRepo {
       bankBalance: bankBalance,
       cashBalance: cashBalance,
       totalFunds: totalFunds,
-      institutionInvestment: instInvest,
-      loanOutstanding: loanOutstanding,
-      totalSubsidy: subsidy,
-      institutionIncome: instIncome,
-      totalDonation: donation,
-      totalExpense: expense,
+      projectIncome: projectIncome,
+      projectExpense: projectExpense,
+      donationExpense: donationExpense,
+      capitalReturn: capitalReturn,
+      totalExpense: totalExpense,
       distributableProfit: distributable,
       totalPayout: payout,
-      pendingPayout: (distributable - payout).clamp(0, double.infinity),
+      pendingPayout: (distributable - payout).clamp(0, double.infinity).toDouble(),
+      incomeBySector: incomeBySector,
+      expenseBySector: expenseBySector,
       recentTransactions: (currentRole == 'shareholder' && currentMemberNo.isNotEmpty)
           ? txList.where((x) => x.member.toUpperCase() == currentMemberNo.toUpperCase()).take(6).toList()
           : txList.take(6).toList(),
@@ -151,9 +146,7 @@ class DashboardRepo {
       isFounder: me?.founder ?? false,
       isLabor: me?.labor ?? false,
       myTotalInvestment: myInvest,
-      myProfitDue: myDue,
       myProfitPaid: myPaid,
-      myProfitRemaining: (myDue - myPaid).clamp(0, double.infinity),
     );
   }
 }

@@ -1,11 +1,12 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:sampriti/core/components/back_button.dart';
 import 'package:sampriti/core/config/colors.dart';
 
-class PdfPreviewPage extends StatelessWidget {
+class PdfPreviewPage extends StatefulWidget {
   final String title;
   final String pdfFileName;
   final Future<Uint8List> Function() buildPdf;
@@ -31,12 +32,25 @@ class PdfPreviewPage extends StatelessWidget {
   });
 
   @override
+  State<PdfPreviewPage> createState() => _PdfPreviewPageState();
+}
+
+class _PdfPreviewPageState extends State<PdfPreviewPage> {
+  late Future<Uint8List> _pdfFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _pdfFuture = widget.buildPdf();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         leading: const CustomBackButton(),
         title: Text(
-          title,
+          widget.title,
           style: GoogleFonts.notoSansBengali(
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -48,8 +62,16 @@ class PdfPreviewPage extends StatelessWidget {
         canChangeOrientation: false,
         canChangePageFormat: false,
         canDebug: false,
-        pdfFileName: pdfFileName,
-        build: (_) => buildPdf(),
+        initialPageFormat: PdfPageFormat.a4,
+        pageFormats: const {'A4': PdfPageFormat.a4},
+        pdfFileName: widget.pdfFileName,
+        build: (_) => _pdfFuture,
+        onError: (context, error) => const Center(
+          child: Text(
+            'পিডিএফ লোড হতে সমস্যা হয়েছে',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
         scrollViewDecoration: const BoxDecoration(
           color: AppColors.background,
         ),

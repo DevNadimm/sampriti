@@ -281,28 +281,25 @@ class _MemberDetailsPageState extends State<MemberDetailsPage> {
           MemberAvatar(
             photo: m.photo,
             fallbackText: m.no,
-            size: 84,
-            border: Border.all(color: AppColors.accentYellow, width: 3),
+            width: 84,
+            height: 104,
+            isCircle: false,
+            borderRadius: 12,
+            border: Border.all(
+              color: AppColors.accent,
+              width: 2.5,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
-            m.displayName,
-            style: GoogleFonts.notoSansBengali(
+            m.nameEn.isNotEmpty ? m.nameEn : m.displayName,
+            style: GoogleFonts.poppins(
               fontSize: 20,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
+            textAlign: TextAlign.center,
           ),
-          if (m.nameEn.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              m.nameEn,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,

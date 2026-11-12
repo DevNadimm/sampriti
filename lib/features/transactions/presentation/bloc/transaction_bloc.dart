@@ -10,7 +10,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     on<TransactionFetchRequested>(_onFetch);
     on<TransactionAddRequested>(_onAdd);
     on<TransactionDeleteRequested>(_onDelete);
-    on<BulkPayoutRequested>(_onBulkPayout);
+    on<ProjectProfitDistributionRequested>(_onProjectProfitDistribution);
   }
 
   Future<void> _onFetch(
@@ -21,12 +21,20 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     try {
       final list = await TransactionsRepo.getTransactions(
         memberNo: event.memberNo,
-        type: event.type,
+        dir: event.dir,
+        sectorId: event.sectorId,
+        kind: event.kind,
+        projectId: event.projectId,
+        from: event.from,
+        to: event.to,
       );
       emit(TransactionLoaded(
         transactions: list,
         activeMemberFilter: event.memberNo,
-        activeTypeFilter: event.type,
+        activeDirFilter: event.dir,
+        activeSectorFilter: event.sectorId,
+        activeKindFilter: event.kind,
+        activeProjectFilter: event.projectId,
       ));
     } catch (e) {
       emit(TransactionFailure(e.toString()));
@@ -63,21 +71,22 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     }
   }
 
-  Future<void> _onBulkPayout(
-    BulkPayoutRequested event,
+  Future<void> _onProjectProfitDistribution(
+    ProjectProfitDistributionRequested event,
     Emitter<TransactionState> emit,
   ) async {
     emit(TransactionLoading());
     try {
-      final count = await TransactionsRepo.doBulkDividendPayout(
-        totalFund: event.totalFund,
+      final count = await TransactionsRepo.doProjectProfitDistribution(
+        projectId: event.projectId,
+        totalProfit: event.totalProfit,
         date: event.date,
         mode: event.mode,
         acct: event.acct,
         note: event.note,
       );
       final list = await TransactionsRepo.getTransactions();
-      emit(TransactionActionSuccess('$count জন সদস্যের লভ্যাংশ সফলভাবে বণ্টন করা হয়েছে'));
+      emit(TransactionActionSuccess('$count জন সদস্যের মুনাফা সফলভাবে বণ্টন করা হয়েছে'));
       emit(TransactionLoaded(transactions: list));
     } catch (e) {
       emit(TransactionFailure(e.toString()));
